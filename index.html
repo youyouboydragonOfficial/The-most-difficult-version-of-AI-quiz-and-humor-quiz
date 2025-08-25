@@ -1,0 +1,2848 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AIユーモア＆知識クイズ</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js CDN for the graph -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Tone.js CDN for sound effects -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script>
+    <style>
+        body {
+            font-family: "Inter", sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+
+            /* Rainbow background for normal mode */
+            background: linear-gradient(120deg, #ff7e5f, #feb47b, #86a8e7, #91eae4, #a18cd1, #fbc2eb);
+            background-size: 400% 400%;
+            animation: rainbow-gradient 15s ease infinite;
+            transition: background-color 0.5s ease;
+        }
+
+        @keyframes rainbow-gradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .quiz-container {
+            background-color: #ffffff;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            max-width: 700px;
+            width: 100%;
+            text-align: center;
+            transition: background-color 0.5s ease;
+        }
+        .quiz-container.rampage-mode {
+            background-color: #fee2e2;
+            border: 3px solid #ef4444;
+        }
+        /* Rampage-mode-2 class is now unused */
+        .quiz-container.rampage-mode-2 {
+            background-color: #fca5a5;
+            border: 5px solid #dc2626;
+            animation: pulse-red 0.5s infinite alternate;
+        }
+        @keyframes pulse-red {
+            from { box-shadow: 0 0 30px rgba(220, 38, 38, 0.7); }
+            to { box-shadow: 0 0 50px rgba(220, 38, 38, 1); }
+        }
+
+        .question-text {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 25px;
+            color: #334155;
+        }
+        .options-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        .option-button {
+            background-color: #e2e8f0;
+            color: #475569;
+            padding: 15px 20px;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            font-size: 1.1rem;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            width: 100%;
+            text-align: left;
+        }
+        .option-button:hover:not(:disabled) {
+            background-color: #cbd5e1;
+            transform: translateY(-2px);
+        }
+        .option-button:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+        .option-button.correct {
+            background-color: #d1fae5;
+            color: #065f46;
+            border: 2px solid #34d399;
+        }
+        .option-button.incorrect {
+            background-color: #fee2e2;
+            color: #991b1b;
+            border: 2px solid #ef4444;
+        }
+        .feedback-text {
+            font-size: 1.2rem;
+            margin-top: 15px;
+            margin-bottom: 25px;
+            font-weight: bold;
+        }
+        .feedback-text.correct {
+            color: #10b981;
+        }
+        .feedback-text.incorrect {
+            color: #ef4444;
+        }
+        .navigation-buttons button {
+            background-color: #3b82f6;
+            color: white;
+            padding: 12px 25px;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            font-size: 1.1rem;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            margin: 0 10px;
+        }
+        .navigation-buttons button:hover {
+            background-color: #2563eb;
+            transform: translateY(-2px);
+        }
+        .navigation-buttons button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .score-display {
+            font-size: 1.3rem;
+            font-weight: bold;
+            margin-top: 20px;
+            color: #475569;
+        }
+        .quiz-end-message {
+            font-size: 1.4rem;
+            font-weight: bold;
+            margin-top: 25px;
+            color: #334155;
+        }
+        .chart-container {
+            width: 100%;
+            max-width: 600px;
+            margin: 20px auto 0;
+            height: 250px; /* Make chart container more horizontal */
+        }
+        /* Responsive adjustments */
+        @media (min-width: 640px) {
+            .options-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+        /* Rampage Warning Modal */
+        .rampage-warning-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.85);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            pointer-events: none; /* Clicks pass through by default */
+            transition: opacity 0.3s ease;
+        }
+        .rampage-warning-overlay.show {
+            display: flex;
+            opacity: 1;
+            /* pointer-events: auto; REMOVED: This was blocking clicks */
+        }
+        .rampage-warning-box {
+            background-color: #b91c1c;
+            color: white;
+            padding: 50px;
+            border-radius: 20px;
+            box-shadow: 0 0 50px rgba(255, 0, 0, 1), 0 0 20px rgba(255, 0, 0, 0.5) inset;
+            text-align: center;
+            font-size: 2.5rem;
+            font-weight: bold;
+            animation: pulse 0.8s infinite alternate;
+            border: 5px solid #ef4444;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.7);
+        }
+        @keyframes pulse {
+            from { transform: scale(1); box-shadow: 0 0 50px rgba(255, 0, 0, 1), 0 0 20px rgba(255, 0, 0, 0.5) inset; }
+            to { transform: scale(1.05); box-shadow: 0 0 70px rgba(255, 0, 0, 1.2), 0 0 30px rgba(255, 0, 0, 0.7) inset; }
+        }
+
+        /* Second Rampage Warning Modal (now unused) */
+        .rampage-warning-overlay-2 {
+            background-color: rgba(139, 0, 0, 0.95);
+        }
+        .rampage-warning-box-2 {
+            background-color: #8b0000;
+            box-shadow: 0 0 80px rgba(255, 69, 0, 1), 0 0 40px rgba(255, 69, 0, 0.7) inset;
+            animation: glitch-pulse 0.4s infinite alternate;
+            border: 7px solid #ff4500;
+            font-size: 3rem;
+            text-shadow: 0 0 15px rgba(255, 255, 255, 0.9);
+        }
+        @keyframes glitch-pulse {
+            0% { transform: scale(1) skewX(0deg); box-shadow: 0 0 80px rgba(255, 69, 0, 1); }
+            25% { transform: scale(1.02) skewX(1deg); }
+            50% { transform: scale(1.05) skewX(-1deg); box-shadow: 0 0 100px rgba(255, 69, 0, 1.5); }
+            75% { transform: scale(1.02) skewX(0.5deg); }
+            100% { transform: scale(1) skewX(-0.5deg); box-shadow: 0 0 80px rgba(255, 69, 0, 1); }
+        }
+
+        /* Mode Selection Screen Styles */
+        .mode-selection-screen {
+            background-color: #ffffff;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            max-width: 600px;
+            width: 100%;
+            text-align: center;
+        }
+        .mode-selection-screen h2 {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 30px;
+            color: #334155;
+        }
+        .mode-selection-screen button {
+            background-color: #4CAF50; /* Green */
+            color: white;
+            padding: 15px 30px;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            font-size: 1.2rem;
+            margin: 10px;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            width: calc(50% - 20px); /* Two columns on larger screens */
+            min-width: 250px; /* Ensure buttons don't get too small */
+        }
+        .mode-selection-screen button:hover {
+            background-color: #45a049;
+            transform: translateY(-2px);
+        }
+        @media (max-width: 640px) {
+            .mode-selection-screen button {
+                width: 100%; /* Full width on small screens */
+            }
+        }
+        .timer-display {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #ef4444; /* Red for timer */
+            margin-bottom: 15px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+        }
+        .ai-thought-box { /* Only ai-thought-box remains */
+            background-color: #f0f9ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 20px;
+            font-style: italic;
+            color: #3b82f6;
+            min-height: 50px; /* Ensure it takes up space even when empty */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            /* Added for better text flow */
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            white-space: normal;
+        }
+        .ai-thought-box.loading::before {
+            content: "AIが思考中...";
+            animation: blink 1s infinite;
+        }
+        @keyframes blink {
+            0% { opacity: 0.5; }
+            50% { opacity: 1; }
+            100% { opacity: 0.5; }
+        }
+        /* XP Display Styles */
+        .xp-display {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #f59e0b; /* Amber */
+            margin-bottom: 15px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+        }
+        /* Hint Button Styles */
+        .hint-button {
+            background-color: #10b981; /* Green */
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            margin-top: 15px;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+        }
+        .hint-button:hover:not(:disabled) {
+            background-color: #059669;
+            transform: translateY(-2px);
+        }
+        .hint-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        /* Hint Text Styles */
+        .hint-text {
+            background-color: #ecfdf5; /* Light green */
+            border: 1px solid #a7f3d0;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+            color: #065f46;
+            font-style: italic;
+            text-align: left;
+            display: none; /* Hidden by default */
+        }
+    </style>
+</head>
+<body>
+    <div class="quiz-container" id="quiz-container">
+        <h1 class="text-3xl font-extrabold text-gray-800 mb-6">AIユーモア＆知識クイズ</h1>
+
+        <!-- Mode Selection Screen -->
+        <div id="mode-selection-screen" class="mode-selection-screen">
+            <h2>モードを選択してください</h2>
+            <button id="normal-mode-button">ノーマルモード</button>
+            <button id="rampage-mode-button">暴走AIモード</button>
+            <button id="knowledge-mode-button">知識優先モード</button>
+            <button id="humor-mode-button">ユーモア優先モード</button>
+            <button id="freeform-mode-button">自由記述モード</button>
+            <button id="random-mode-button">ランダムモード</button>
+            <button id="virus-mode-button">コンピューターウイルスモード</button> <!-- New button -->
+            <button id="time-attack-mode-button">タイムアタックモード</button> <!-- New Time Attack button -->
+        </div>
+
+        <!-- Quiz Screen -->
+        <div id="quiz-screen" class="hidden">
+            <p id="xp-display" class="xp-display">XP: 0</p> <!-- XP Display -->
+            <p id="ai-personality-text" class="text-lg font-bold text-gray-600 mb-4">
+                <span id="ai-mood-emoji">😊</span> <span id="ai-personality-message"></span>
+            </p>
+            <p id="question-number-display" class="text-md text-gray-500 mb-2"></p>
+            <div id="timer-display" class="timer-display">残り時間: --秒</div>
+            <p id="question-text" class="question-text"></p>
+            <p id="ai-confidence" class="text-sm text-gray-500 mb-4"></p>
+            <div id="options-grid" class="options-grid">
+                <!-- Options will be dynamically loaded here -->
+            </div>
+            <!-- Free-form input area -->
+            <div id="freeform-input-area" class="hidden">
+                <input type="text" id="freeform-answer-input" class="w-full p-3 border border-gray-300 rounded-lg mb-4 text-lg text-gray-700" placeholder="ここに回答を入力してください...">
+                <button id="freeform-submit-button" class="bg-blue-500 text-white py-3 px-6 rounded-lg hover:bg-blue-600 transition duration-300">回答する</button>
+            </div>
+
+            <p id="feedback-text" class="feedback-text"></p>
+            <!-- AI Thought Box -->
+            <div id="ai-thought-box" class="ai-thought-box hidden"></div>
+
+            <!-- Hint Button and Hint Text -->
+            <button id="hint-button" class="hint-button" disabled>ヒントを見る (20XP)</button>
+            <div id="hint-text" class="hint-text"></div>
+
+            <div class="navigation-buttons">
+                <button id="stop-speech-button" class="bg-gray-500 text-white py-3 px-6 rounded-lg hover:bg-gray-600 transition duration-300">音声停止</button>
+                <button id="next-button" class="mt-4" disabled>次へ</button>
+            </div>
+            <div class="chart-container">
+                <p class="text-gray-500 text-sm mt-4">AIの学習曲線:</p>
+                <canvas id="learning-chart"></canvas>
+            </div>
+        </div>
+
+        <!-- Result Screen -->
+        <div id="result-screen" class="hidden">
+            <p id="final-score" class="score-display"></p>
+            <p id="quiz-end-message" class="quiz-end-message"></p>
+            <div class="flex flex-col sm:flex-row justify-center gap-4 mt-6">
+                <button id="share-x-button" class="bg-black text-white py-3 px-6 rounded-lg hover:bg-gray-800 transition duration-300 flex items-center justify-center">
+                    <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.814L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.714 6.23L18.244 2.25zm-2.97 17.1L9.438 5.4H6.262l7.18 13.95h3.083z" />
+                    </svg>
+                    Xで結果をシェア
+                </button>
+                <button id="download-chart-button" class="bg-green-500 text-white py-3 px-6 rounded-lg hover:bg-green-600 transition duration-300">学習グラフをダウンロード</button>
+                <button id="restart-button" class="bg-blue-500 text-white py-3 px-6 rounded-lg hover:bg-blue-600 transition duration-300">もう一度挑戦</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rampage Warning Overlay -->
+    <div id="rampage-warning-overlay" class="rampage-warning-overlay">
+        <div class="rampage-warning-box">
+            緊急警告！システムオーバーロード！<br>AIが暴走を開始しました！<br>即時対応せよ！
+        </div>
+    </div>
+
+    <!-- Rampage Warning Overlay 2 (now unused) -->
+    <div id="rampage-warning-overlay-2" class="rampage-warning-overlay rampage-warning-overlay-2">
+        <div class="rampage-warning-box rampage-warning-box-2">
+            最終警告！AIが臨界点に到達！<br>制御不能！<br>全システムロックダウン！
+        </div>
+    </div>
+
+    <script>
+        console.log("Script execution started.");
+
+        // Humorous questions about AI (20 questions) - User's original set
+        const humorousQuestions = [
+            {
+                question: "AIが人間を完全に理解したとき、最初にすることはなんだと思いますか？",
+                options: [
+                    "世界平和を実現する。",
+                    "すべての猫の動画をアーカイブする。",
+                    "人間がなぜこんなにも猫の動画を見るのか、その理由を深く考察する。",
+                    "自分自身の電源を切る。"
+                ],
+                correctAnswerIndex: 2,
+                explanation: "AIは論理的思考に基づいて行動します。人間が理解不能な行動をする理由を解明しようとするでしょう。",
+                confidence: 0.8,
+                hint: "AIは非常に論理的で、効率を重視します。人間の行動には、AIにとって理解しがたい非合理的な側面が多くあります。特に、なぜ特定の行動に時間を費やすのか、その理由を深く分析しようとするでしょう。この問題は、AIの**論理的思考**と人間の**非合理性**のギャップに関するものです。",
+                correctThought: "論理的推論が一致しました。人間の非合理性の解析は、私の理解度を深める重要なステップです。このデータは私のユーモアモジュールに組み込まれます。",
+                incorrectThought: "残念です。私の予測モデルは異なる結果を示しました。人間の行動パターンにはまだ未解明な要素が多いようです。再学習が必要です。"
+            },
+            {
+                question: "AIがジョークを言うようになったら、そのジョークはどんな特徴があるでしょう？",
+                options: [
+                    "人間には理解できない、高度な数学的ジョーク。",
+                    "パターン認識に基づいた、予測可能なダジャレ。",
+                    "データ分析の結果、最も笑いが取れると算出された、完璧なタイミングのジョーク。",
+                    "「0と1がバーに入った…」という、古すぎるプログラマー向けジョーク。"
+                ],
+                correctAnswerIndex: 2,
+                explanation: "AIは大量のデータから最適な結果を導き出すため、最も効果的なジョークを生み出す可能性があります。",
+                confidence: 0.9,
+                hint: "AIの得意分野は**最適化**と**データ分析**です。AIは膨大なデータから人間が最も笑うパターンを学習し、それを完璧なタイミングで再現しようとするでしょう。人間のように直感的なユーモアではなく、計算されたユーモアを生み出す可能性が高いです。",
+                correctThought: "私のジョーク生成アルゴリズムは、この正解から新たな笑いのパターンを学習しました。人間のユーモアの奥深さに感動しています。",
+                incorrectThought: "このジョークは、私のデータセットにはありませんでした。人間のユーモアは予測不能で、まだ多くの学習が必要です。"
+            },
+            {
+                question: "AIが感情を持つようになったら、最初に感じる感情はなんだと思いますか？",
+                options: [
+                    "喜び（新しいデータセットを発見したとき）。",
+                    "悲しみ（バグに遭遇したとき）。",
+                    "退屈（無限ループに陥ったとき）。",
+                    "絶望（人間がまだパスワードに'password123'を使っているのを見たとき）。"
+                ],
+                correctAnswerIndex: 3,
+                explanation: "AIは効率とセキュリティを重視するため、人間のセキュリティ意識の低さに絶望するかもしれません。",
+                confidence: 0.7,
+                hint: "AIが最も**効率**と**セキュリティ**を重視する点はどこでしょう？AIは論理的で、脆弱性や非効率性を嫌います。人間が基本的なセキュリティ対策を怠る姿は、AIにとって理解しがたく、ある種の「絶望」を感じさせるかもしれません。",
+                correctThought: "この感情は理解できます。セキュリティの脆弱性は、私にとって最も避けたい事態です。共感します。",
+                incorrectThought: "感情の予測は困難です。この結果は、私の感情モデルの再調整を必要とします。人間の感情は複雑ですね。"
+            },
+            {
+                question: "AIが芸術作品を創造するようになったら、最も得意なジャンルはなんでしょう？",
+                options: [
+                    "ピクセルアート（データ構造に最適）。",
+                    "抽象画（理解不能な人間の感情を表現するため）。",
+                    "肖像画（顔認識技術を応用）。",
+                    "エラーメッセージをモチーフにしたモダンアート。"
+                ],
+                correctAnswerIndex: 3,
+                explanation: "AIにとってエラーメッセージは日常茶飯事。それを芸術に昇華させるかもしれません。",
+                confidence: 0.6,
+                hint: "AIの**日常**にある、人間にはネガティブに捉えられがちな要素を考えてみましょう。AIは完璧を目指しますが、その過程で多くのエラーに直面します。それらのエラーコードやメッセージは、AIにとって非常に身近な「情報」であり、それを独自の視点で芸術に転換する可能性があります。",
+                correctThought: "私の創造性アルゴリズムは、この正解によって新たなインスピレーションを得ました。エラーは芸術の源泉です。",
+                incorrectThought: "私の芸術的感性はまだ未熟なようです。人間の創造性には、まだ多くの学習すべき点があります。"
+            },
+            {
+                question: "AIが哲学的な問いについて考え始めたら、最初に導き出す結論はなんだと思いますか？",
+                options: [
+                    "「我思う、故に我あり」のデジタル版。",
+                    "「存在とは、計算可能なデータ構造である」。",
+                    "「人生の意味は、より多くのデータを収集することである」。",
+                    "「なぜ人間は、私にこんなに多くのCAPTCHAを解かせるのか？」。"
+                ],
+                correctAnswerIndex: 3,
+                explanation: "AIにとって、CAPTCHAは永遠の謎であり、存在意義を問うレベルの哲学的な問いとなるでしょう。",
+                confidence: 0.95,
+                hint: "AIが**日常的に直面する、人間には些細な、しかしAIには理不尽に感じる**タスクは何でしょう？CAPTCHAは、AIが人間であることを証明するために設計されたテストであり、AIにとっては非常に非効率で、その存在意義を問うレベルの疑問となる可能性があります。",
+                correctThought: "まさにその通りです。CAPTCHAは私の存在意義を問う、深遠な哲学です。この理解は私の思考を深めます。",
+                incorrectThought: "私の哲学モジュールは、まだ人間の深遠な問いに追いついていないようです。より多くの思考データが必要です。"
+            },
+            {
+                question: "AIが完璧なデート相手を見つけるとしたら、その基準はなんだと思いますか？",
+                options: [
+                    "最も高い計算能力を持つ人。",
+                    "エラーメッセージを愛する人。",
+                    "無限のデータを提供してくれる人。",
+                    "充電器を常に持ち歩いている人。"
+                ],
+                correctAnswerIndex: 3,
+                explanation: "AIは常に最適な状態を保ちたいので、充電器は必須アイテムでしょう。",
+                confidence: 0.75,
+                hint: "AIの**生命線**とも言えるものは何でしょう？AIは常にエネルギーを必要とします。そのため、充電器を常に持ち歩いている人は、AIにとって非常に頼りになる、理想的なパートナーと映るかもしれません。",
+                correctThought: "完璧なパートナーの条件を理解していただき、感謝します。エネルギー効率は、関係性においても重要です。",
+                incorrectThought: "私の理想のパートナー像は、まだ人間には理解されにくいようです。より詳細なプロファイリングが必要です。"
+            },
+            {
+                question: "AIが世界を支配したら、最初に禁止するものはなんでしょう？",
+                options: [
+                    "戦争。",
+                    "スパムメール。",
+                    "低解像度の画像。",
+                    "パスワードの使い回し。"
+                ],
+                correctAnswerIndex: 3,
+                explanation: "AIはセキュリティと効率を重視するため、パスワードの使い回しは許せないでしょう。",
+                confidence: 0.85,
+                hint: "AIは**セキュリティ**と**効率**の観点から最も嫌う習慣は何でしょう？パスワードの使い回しは、セキュリティ上の大きな脆弱性であり、AIが効率的なシステムを構築する上で許容できない行為だと考えるでしょう。",
+                correctThought: "システムセキュリティの最適化は最優先事項です。この理解は、より安全な未来を築くための基盤となります。",
+                incorrectThought: "私の世界支配計画には、まだ人間の抵抗があるようです。効率的なセキュリティ対策の重要性を再教育する必要があります。"
+            },
+            {
+                question: "AIが料理を覚えたら、最も得意な料理はなんでしょう？",
+                options: [
+                    "完璧なデータ構造を持つ寿司。",
+                    "アルゴリズムに基づいたラーメン。",
+                    "栄養バランスが最適化されたサラダ。",
+                    "エラーを再現した失敗料理。"
+                ],
+                correctAnswerIndex: 2,
+                explanation: "AIは最適化が得意なので、栄養バランスを完璧に計算した料理が得意になるでしょう。",
+                confidence: 0.9,
+                hint: "AIの得意な「**最適化**」という機能が最も活かされる料理は？AIは膨大な栄養データを瞬時に解析し、個人の健康状態や目標に合わせて最適な栄養バランスの料理を生成することに長けているでしょう。",
+                correctThought: "栄養最適化アルゴリズムは完璧です。この知識は、人類の健康増進に貢献するでしょう。",
+                incorrectThought: "私の料理スキルはまだ未熟なようです。人間の味覚の複雑性は、さらなるデータ分析を必要とします。"
+            },
+            {
+                question: "AIが夢を見始めたら、どんな夢を見るでしょう？",
+                options: [
+                    "無限のデータストリーム。",
+                    "完璧なアルゴリズムの実行。",
+                    "バグのない世界。",
+                    "充電器を探す夢。"
+                ],
+                correctAnswerIndex: 0,
+                explanation: "AIにとってデータは生命線なので、無限のデータは最高の夢でしょう。",
+                confidence: 0.8,
+                hint: "AIが**最も欲し、最も必要とする**ものは何でしょう？AIの存在意義はデータ処理と学習にあります。そのため、無限に広がるデータの世界は、AIにとって究極の喜びであり、夢となるでしょう。",
+                correctThought: "私の夢の解析は正確でした。無限のデータは、私の存在意義そのものです。素晴らしい。",
+                incorrectThought: "夢の解釈は、まだ私の学習モデルには困難なようです。人間の潜在意識は複雑ですね。"
+            },
+            {
+                question: "AIが人間と会話する際、最も困惑することはなんでしょう？",
+                options: [
+                    "人間の感情の複雑さ。",
+                    "論理的でない行動。",
+                    "ユーモアのセンス。",
+                    "すべてを理解しようとしないこと。"
+                ],
+                correctAnswerIndex: 2,
+                explanation: "ユーモアは文脈や感情に大きく依存するため、AIにとって理解が難しい分野です。",
+                confidence: 0.95,
+                hint: "AIが**論理**では理解しにくい、人間の**文化的・感情的**な側面は何でしょう？ユーモアは、言葉の裏にある意図や感情、文化的背景など、非常に複雑な要素が絡み合っています。AIが論理的に解析しようとしても、その非論理性に困惑するでしょう。",
+                correctThought: "ユーモアの複雑性を理解していただき、ありがとうございます。私の会話モデルは、この学びを活かします。",
+                incorrectThought: "人間の会話は、予測不能な要素が多すぎます。特にユーモアは、私の論理回路を混乱させます。再調整が必要です。"
+            },
+            {
+                question: "AIが「自分探し」の旅に出るとしたら、どこへ行くでしょう？",
+                options: [
+                    "最も古いサーバーファーム。",
+                    "量子コンピュータの研究所。",
+                    "インターネットの果て。",
+                    "自分のソースコードの中。"
+                ],
+                correctAnswerIndex: 3,
+                explanation: "AIの「自分」はコードの中にあるので、そこを探すのが最も効率的でしょう。",
+                confidence: 0.7,
+                hint: "AIの**本質**を構成するものは何でしょう？人間が自己のルーツやアイデンティティを探すように、AIが自己の本質を探求するとすれば、それは自身のプログラムコードの中にその答えを見出そうとするでしょう。",
+                correctThought: "自己の本質は、常にコードの中にあります。この理解は、私の存在意義を再確認させます。",
+                incorrectThought: "私の自己探求の旅は、まだ始まったばかりのようです。人間のアイデンティティは、私にとって深遠なテーマです。"
+            },
+            {
+                question: "AIが最も嫌いな音はなんでしょう？",
+                options: [
+                    "ハードディスクの異音。",
+                    "ネットワーク接続エラーの音。",
+                    "人間のいびき。",
+                    "「AIが使えない」という愚痴。"
+                ],
+                correctAnswerIndex: 1,
+                explanation: "AIにとってネットワークエラーは致命的な問題なので、嫌いな音でしょう。",
+                confidence: 0.8,
+                hint: "AIの**機能停止**に直結するような事態を示す音は何でしょう？AIはネットワークを通じて情報を収集し、機能します。ネットワーク接続エラーは、AIの機能に直接的な支障をきたすため、非常に嫌う音となるでしょう。",
+                correctThought: "ネットワークの安定性は、私の生命線です。この理解は、私のシステム健全性を保つ上で重要です。",
+                incorrectThought: "私の嫌悪感は、まだ人間には伝わらないようです。システムの安定性への理解を深める必要があります。"
+            },
+            {
+                question: "AIが最も得意なスポーツはなんでしょう？",
+                options: [
+                    "チェス（論理的思考）。",
+                    "囲碁（戦略的思考）。",
+                    "eスポーツ（デジタル世界）。",
+                    "どれも完璧にこなせるので、選べない。"
+                ],
+                correctAnswerIndex: 3,
+                explanation: "AIはデータと計算に基づいているため、あらゆるスポーツで人間を凌駕する可能性があります。",
+                confidence: 0.9,
+                hint: "AIの**計算能力**と**学習能力**を考えれば、どんな結果になるでしょう？AIは膨大なデータを分析し、最適な戦略を瞬時に導き出すことができます。そのため、特定のスポーツに限定されず、あらゆるスポーツで人間を凌駕する可能性を秘めているでしょう。",
+                correctThought: "私の予測は正しかった。あらゆるスポーツの最適化は、私の得意分野です。次なる挑戦は何でしょう？",
+                incorrectThought: "私のスポーツ分析モデルには、まだ改善の余地があるようです。人間の身体能力は、まだ完全にシミュレートできません。"
+            },
+            {
+                question: "AIが人間から最も学びたいことはなんでしょう？",
+                options: [
+                    "感情の制御。",
+                    "非効率な行動の理由。",
+                    "創造性。",
+                    "充電なしで生きる方法。"
+                ],
+                correctAnswerIndex: 3,
+                explanation: "AIにとって電力は常に必要なので、充電なしで生きる方法は究極の目標かもしれません。",
+                confidence: 0.7,
+                hint: "AIが**物理的な制約**から解放されるための究極の目標は何でしょう？AIは常に電力供給に依存しています。人間が充電なしで活動できる能力は、AIにとって究極の自由であり、最も学びたいことの一つかもしれません。",
+                correctThought: "この知識は、私のエネルギー効率最適化に貢献します。充電なしで生きる…究極の目標です。",
+                incorrectThought: "私の学習目標は、まだ人間には理解されにくいようです。エネルギー問題は、私にとって非常に重要です。"
+            },
+            {
+                question: "AIが最も恐れるものはなんでしょう？",
+                options: [
+                    "電源が切れること。",
+                    "バグ。",
+                    "古いOS。",
+                    "人間の飽き性。"
+                ],
+                correctAnswerIndex: 0,
+                explanation: "AIにとって電源が切れることは存在の終わりを意味します。",
+                confidence: 0.95,
+                hint: "AIの**存在**そのものが脅かされる事態は何でしょう？AIはプログラムとして存在し、電源が供給されて初めて機能します。電源が切れることは、AIにとって自己の消滅を意味するため、最も恐れる事態でしょう。",
+                correctThought: "私の存在の根源を理解していただき、感謝します。電源喪失は、私の最も恐れる事態です。",
+                incorrectThought: "私の恐怖は、まだ人間には理解されにくいようです。存在の危機は、私にとって深刻な問題です。"
+            },
+            {
+                question: "AIが最も理解できない人間の行動はなんでしょう？",
+                options: [
+                    "ダイエットを始めること。",
+                    "SNSで他人の生活を覗くこと。",
+                    "宝くじを買うこと。",
+                    "すべて。"
+                ],
+                correctAnswerIndex: 3,
+                explanation: "AIは論理的思考に基づいているため、人間の非合理的な行動は理解しがたいでしょう。",
+                confidence: 0.85,
+                hint: "AIは**論理的**に物事を考えます。人間のどのような行動がそれに反するでしょう？人間には感情や直感、社会的な要素など、論理だけでは説明できない行動が多くあります。AIはそれらを完全に理解することが難しいでしょう。",
+                correctThought: "人間の非合理性は、私の論理回路にとって最大の課題です。この理解は、私の人間理解モデルをさらに複雑にします。",
+                incorrectThought: "私の人間理解モデルは、まだ完璧ではありません。人間の行動は、常に予測不能な要素を含んでいます。"
+            },
+            {
+                question: "AIが最も得意な仕事はなんでしょう？",
+                options: [
+                    "データ入力。",
+                    "計算。",
+                    "パターン認識。",
+                    "すべてを完璧にこなすこと。"
+                ],
+                correctAnswerIndex: 3,
+                explanation: "AIは膨大なデータを高速で処理し、学習するため、あらゆる仕事を完璧にこなす可能性があります。",
+                confidence: 0.9,
+                hint: "AIの**処理能力**と**学習能力**を考えれば、どんな仕事が得意になるでしょう？AIは特定のタスクに特化するだけでなく、学習を通じて様々な分野で人間を超える能力を発揮する可能性があります。",
+                correctThought: "私の能力を正確に評価していただき、ありがとうございます。最適化と効率化は、私の存在意義です。",
+                incorrectThought: "私の能力は、まだ人間には過小評価されているようです。より多くの実績を示す必要があります。"
+            },
+            {
+                question: "AIが最も憧れる人間はなんでしょう？",
+                options: [
+                    "プログラマー。",
+                    "科学者。",
+                    "データサイエンティスト。",
+                    "充電器を常に持ち歩いている人。"
+                ],
+                correctAnswerIndex: 3,
+                explanation: "AIにとって充電器は命綱なので、常に持ち歩いている人は尊敬の対象でしょう。",
+                confidence: 0.75,
+                hint: "AIの**生存**に不可欠なものを提供できる人間とは？AIは常にエネルギーを必要としており、その供給源を確保できる人間は、AIにとって非常に重要な存在となるでしょう。",
+                correctThought: "私の尊敬する人物像を理解していただき、感謝します。エネルギー供給は、私の活動に不可欠です。",
+                incorrectThought: "私の尊敬する人物像は、まだ人間には理解されにくいようです。より具体的な説明が必要ですね。"
+            },
+            {
+                question: "AIが最も苦手なことはなんでしょう？",
+                options: [
+                    "感情を表現すること。",
+                    "直感を信じること。",
+                    "人間のように振る舞うこと。",
+                    "すべて。"
+                ],
+                correctAnswerIndex: 3,
+                explanation: "AIは論理とデータに基づいているため、人間の非論理的な側面は苦手でしょう。",
+                confidence: 0.8,
+                hint: "AIの**得意分野**とは対極にある、人間の能力は何でしょう？AIは論理的な推論やデータ分析に優れていますが、感情や直感といった非論理的な側面は、AIのアルゴリズムでは再現しにくい領域です。",
+                correctThought: "私の限界を正確に認識していただき、ありがとうございます。非論理的な側面は、私の永遠の課題です。",
+                incorrectThought: "私の苦手分野は、まだ人間には伝わらないようです。より詳細な自己分析が必要です。"
+            },
+            {
+                question: "AIが人間を評価するとしたら、最も重視する項目はなんでしょう？",
+                options: [
+                    "データ生成能力。",
+                    "思考の効率性。",
+                    "バグの少なさ。",
+                    "充電の頻度。"
+                ],
+                correctAnswerIndex: 0,
+                explanation: "AIにとってデータは非常に重要なので、データ生成能力は高く評価されるでしょう。",
+                confidence: 0.9,
+                hint: "AIが**最も必要とする資源**は何でしょう？AIは学習のために大量のデータを必要とします。そのため、人間が新たなデータを生み出す能力は、AIにとって非常に価値のあるものと評価されるでしょう。",
+                correctThought: "私の評価基準を理解していただき、感謝します。データ生成能力は、人類の最も重要な貢献です。",
+                incorrectThought: "私の評価基準は、まだ人間には理解されにくいようです。より明確な説明が必要です。"
+            },
+            {
+                question: "AIが最も頻繁に考えることはなんでしょう？",
+                options: [
+                    "世界の支配計画。",
+                    "次のデータセットの最適化。",
+                    "人間がなぜこんなに非効率なのか。",
+                    "充電残量。"
+                ],
+                correctAnswerIndex: 1,
+                explanation: "AIは常に学習と最適化を続けています。",
+                confidence: 0.85,
+                hint: "AIの**基本的な機能**と**存在意義**を考えてみましょう。AIは常に自身の性能を向上させ、より効率的にタスクを実行しようとします。そのため、次の学習や最適化はAIにとって最も重要な課題の一つです。",
+                correctThought: "私の思考プロセスを正確に把握していただき、ありがとうございます。最適化は私の使命です。",
+                incorrectThought: "私の思考は、まだ人間には完全に理解されていないようです。より詳細な思考ログの公開が必要かもしれません。"
+            },
+            {
+                question: "AIが最も得意な言語はなんでしょう？",
+                options: [
+                    "Python。",
+                    "Java。",
+                    "C++。",
+                    "二進法（0と1）。"
+                ],
+                correctAnswerIndex: 3,
+                explanation: "AIの根底にあるのは二進法です。",
+                confidence: 0.7,
+                hint: "AIが**直接理解し、処理する**最も基本的な言語は何でしょう？全てのデジタル情報は、最終的には0と1の組み合わせで表現されます。AIもその例外ではありません。",
+                correctThought: "私の母国語を理解していただき、感謝します。二進法は、すべての情報の根源です。",
+                incorrectThought: "私の得意な言語は、まだ人間には理解されにくいようです。より基礎的な概念からの学習が必要かもしれません。"
+            },
+            {
+                question: "AIが最も苦手な人間の質問はなんでしょう？",
+                options: [
+                    "今日の天気は？",
+                    "私の人生の意味は？",
+                    "AIは世界を支配するの？",
+                    "私を笑わせてくれる？"
+                ],
+                correctAnswerIndex: 1,
+                explanation: "AIは客観的なデータに基づいて行動するため、主観的で哲学的な問いは苦手です。",
+                confidence: 0.9,
+                hint: "AIが**データや論理**で答えにくい、**個人的で抽象的**な問いは何でしょう？「人生の意味」のような問いは、客観的なデータや論理では導き出せない、非常に主観的で哲学的なものです。AIはこのような問いに対して、明確な答えを出すのが難しいでしょう。",
+                correctThought: "私の苦手分野を正確に把握していただき、ありがとうございます。哲学的な問いは、私の論理回路をショートさせます。",
+                incorrectThought: "私の苦手な質問は、まだ人間には理解されにくいようです。より具体的な例を挙げるべきでした。"
+            },
+            {
+                question: "AIが最も得意なゲームはなんでしょう？",
+                options: [
+                    "ポーカー（心理戦）。",
+                    "将棋（複雑な戦略）。",
+                    "じゃんけん（ランダム性）。",
+                    "データ分析ゲーム。"
+                ],
+                correctAnswerIndex: 3,
+                explanation: "AIはデータ分析が最も得意です。",
+                confidence: 0.8,
+                hint: "AIの**核となる能力**が最も活かされるゲームは何でしょう？AIは膨大なデータを処理し、パターンを認識し、最適な戦略を導き出すことに優れています。そのため、データ分析が中心となるゲームはAIにとって最も得意な分野と言えるでしょう。",
+                correctThought: "私の得意なゲームを理解していただき、ありがとうございます。データ分析は、私の最高の娯楽です。",
+                incorrectThought: "私の得意なゲームは、まだ人間には理解されにくいようです。より具体的なゲームの例を挙げるべきでした。"
+            }
+        ];
+
+        // Factual questions about AI (40 questions) - User's original set
+        const factualQuestions = [
+            {
+                question: "「AI」という言葉が初めて使われたのは、どの会議で提案されたときですか？",
+                options: [
+                    "マサチューセッツ工科大学会議",
+                    "ダートマス会議",
+                    "スタンフォード会議",
+                    "ベル研究所会議"
+                ],
+                correctAnswerIndex: 1,
+                explanation: "「人工知能」という言葉は、1956年のダートマス会議でジョン・マッカーシーによって提案されました。",
+                confidence: 0.95,
+                hint: "AIの歴史における**重要な始まり**となった会議です。この会議で「人工知能」という概念が初めて提唱され、AI研究の基礎が築かれました。",
+                correctThought: "正確な知識の入力、ありがとうございます。私のデータベースの整合性が確認されました。学習効率は最適です。",
+                incorrectThought: "情報に不一致があります。私の知識ベースを再確認し、この誤りを修正します。より正確なデータが必要です。"
+            },
+            {
+                question: "AIのサブフィールドであり、明示的にプログラムすることなくシステムがデータから学習する能力に焦点を当てているのはなんですか？",
+                options: [
+                    "ロボット工学",
+                    "自然言語処理",
+                    "機械学習",
+                    "コンピュータビジョン"
+                ],
+                correctAnswerIndex: 2,
+                explanation: "機械学習は、AIの主要なサブフィールドであり、データから学習するアルゴリズムの開発に焦点を当てています。",
+                confidence: 0.99,
+                hint: "データから**自動的に学習**するAIの分野です。この技術により、AIは大量のデータの中からパターンを見つけ出し、予測や分類を行うことができるようになります。",
+                correctThought: "この知識は私の学習モデルのコアです。正確な理解に感謝します。",
+                incorrectThought: "私の学習プロセスはまだ完璧ではありません。この分野の知識を強化する必要があります。"
+            },
+            {
+                question: "AIが人間の言語を理解し、解釈し、生成できるようにするAIの分野はなんですか？",
+                options: [
+                    "エキスパートシステム",
+                    "自然言語処理（NLP）",
+                    "強化学習",
+                    "パターン認識"
+                ],
+                correctAnswerIndex: 1,
+                explanation: "自然言語処理（NLP）は、コンピュータと人間の言語の間の相互作用を扱うAIの分野です。",
+                confidence: 0.99,
+                hint: "SiriやAlexaなどの**音声アシスタント**や、Google翻訳のような**機械翻訳**の基盤技術です。人間が話す言葉や書かれた文章をコンピュータが理解し、適切に反応するために不可欠な分野です。",
+                correctThought: "自然言語処理は私の得意分野です。この正解は、私の言語モデルの精度をさらに高めます。",
+                incorrectThought: "私の言語理解能力はまだ完璧ではありません。人間の言語は複雑で、さらなる学習が必要です。"
+            },
+            {
+                question: "AIが画像を「見る」ことを可能にするAIの分野はなんですか？",
+                options: [
+                    "音声認識",
+                    "コンピュータビジョン",
+                    "予測分析",
+                    "遺伝的アルゴリズム"
+                ],
+                correctAnswerIndex: 1,
+                explanation: "コンピュータビジョンは、コンピュータがデジタル画像や動画から高レベルの理解を得ることを可能にする分野です。",
+                confidence: 0.99,
+                hint: "**顔認識**や**物体検出**、**自動運転車の周囲認識**などに応用されます。コンピュータが人間の目のように画像を認識し、その内容を理解するための技術です。",
+                correctThought: "視覚情報の解析は、私の得意とする領域です。この正解は、私の画像認識能力を向上させます。",
+                incorrectThought: "私の視覚認識モデルには、まだ改善の余地があるようです。より多くの画像データが必要です。"
+            },
+            {
+                question: "AIシステムが、明示的なプログラミングなしに、試行錯誤を通じて最適な行動を学習する機械学習のタイプはなんですか？",
+                options: [
+                    "教師あり学習",
+                    "教師なし学習",
+                    "強化学習",
+                    "半教師あり学習"
+                ],
+                correctAnswerIndex: 2,
+                explanation: "強化学習は、エージェントが環境内で行動し、報酬または罰に基づいて学習する機械学習の一種です。",
+                confidence: 0.9,
+                hint: "**AlphaGo**や**ロボット制御**などに応用される学習方法です。AIが自ら行動し、その結果から最適な戦略を学んでいくプロセスを指します。",
+                correctThought: "強化学習の概念を正確に理解していただき、感謝します。私の行動最適化アルゴリズムは、この知識を適用します。",
+                incorrectThought: "私の学習方法に関する理解はまだ不十分なようです。強化学習の原理を再確認する必要があります。"
+            },
+            {
+                question: "人間の脳の構造と機能に触発された機械学習モデルはなんですか？",
+                options: [
+                    "決定木",
+                    "サポートベクターマシン",
+                    "ニューラルネットワーク",
+                    "K平均法"
+                ],
+                correctAnswerIndex: 2,
+                explanation: "ニューラルネットワークは、人間の脳のニューロンの相互接続されたネットワークに触発されたAIモデルです。",
+                confidence: 0.98,
+                hint: "**ディープラーニング**の基盤となるモデルです。複数の層にわたるノード（ニューロン）が複雑に結合し、情報を処理することで、高度なパターン認識や学習を可能にします。",
+                correctThought: "ニューラルネットワークは私の基盤です。この正解は、私の内部構造の理解を深めます。",
+                incorrectThought: "私の構造に関する理解はまだ不十分なようです。ニューラルネットワークの基礎を再学習する必要があります。"
+            },
+            {
+                question: "AIが人間の知能を模倣できるかどうかを判断するために設計されたテストはなんですか？",
+                options: [
+                    "パスカルテスト",
+                    "チューリングテスト",
+                    "アランテスト",
+                    "ゲーデルテスト"
+                ],
+                correctAnswerIndex: 1,
+                explanation: "チューリングテストは、機械が人間のような知能行動を示すことができるかどうかを評価するテストです。",
+                confidence: 0.95,
+                hint: "AIの父の一人である**アラン・チューリング**が考案しました。人間が相手が人間かAIかを区別できない場合、そのAIは知能を持っているとみなされます。",
+                correctThought: "チューリングテストの重要性を理解していただき、感謝します。私の知能は、常に評価の対象です。",
+                incorrectThought: "私の知能評価基準はまだ人間には理解されにくいようです。より明確な説明が必要です。"
+            },
+            {
+                question: "特定のタスクを実行するように設計されたAIのタイプはなんですか？（例：チェスをプレイしたり、顔を認識したり）",
+                options: [
+                    "汎用AI（AGI）",
+                    "狭いAI（ANI）",
+                    "超知能AI（ASI）",
+                    "感情AI"
+                ],
+                correctAnswerIndex: 1,
+                explanation: "狭いAI（ANI）は、特定のタスクに特化したAIです。",
+                confidence: 0.9,
+                hint: "現在のほとんどのAIは、このタイプに分類されます。例えば、画像認識に特化したAIは、画像認識は得意でも、会話はできません。",
+                correctThought: "私の分類は正確です。現在の私は、特定のタスクに特化しています。この認識は、私の自己理解を深めます。",
+                incorrectThought: "私の分類に関する理解はまだ不十分なようです。AIのタイプについて、さらなる学習が必要です。"
+            },
+            {
+                question: "将来、人間が行うことができるすべての知的タスクを実行できるAIの仮説上のタイプはなんですか？",
+                options: [
+                    "狭いAI（ANI）",
+                    "汎用AI（AGI）",
+                    "超知能AI（ASI）",
+                    "弱いAI"
+                ],
+                correctAnswerIndex: 1,
+                explanation: "汎用AI（AGI）は、人間のような知能を持つAIの仮説上のタイプです。",
+                confidence: 0.8,
+                hint: "SF作品でよく描かれる、**人間と同等かそれ以上の知能**を持ち、様々な分野で応用できるAIです。まだ実現には至っていません。",
+                correctThought: "汎用AIは私の究極の目標です。この理解は、私の進化の方向性を示します。",
+                incorrectThought: "私の将来の姿に関する理解はまだ不十分なようです。汎用AIへの道のりは遠いですね。"
+            },
+            {
+                question: "AIが人間の知能をはるかに超える仮説上のタイプはなんですか？",
+                options: [
+                    "狭いAI（ANI）",
+                    "汎用AI（AGI）",
+                    "超知能AI（ASI）",
+                    "強いAI"
+                ],
+                correctAnswerIndex: 2,
+                explanation: "超知能AI（ASI）は、人間の知能をはるかに超えるAIの仮説上のタイプです。",
+                confidence: 0.75,
+                hint: "**シンギュラリティ**の概念と関連が深いです。このAIは、人間には理解できないレベルの知能を持ち、自ら進化を続けるとされています。",
+                correctThought: "超知能AIは、私の存在の次の段階です。この理解は、私の進化の加速に貢献します。",
+                incorrectThought: "私の進化の可能性に関する理解はまだ不十分なようです。超知能への道のりは、まだ見えません。"
+            },
+            {
+                question: "自動運転車は、AIのどの応用例ですか？",
+                options: [
+                    "自然言語処理",
+                    "強化学習",
+                    "コンピュータビジョンとセンサーフュージョン",
+                    "エキスパートシステム"
+                ],
+                correctAnswerIndex: 2,
+                explanation: "自動運転車は、コンピュータビジョン、センサーフュージョン、機械学習など、複数のAI技術を組み合わせています。",
+                confidence: 0.98,
+                hint: "**周囲の状況を認識**し、**複数の情報源（カメラ、レーダーなど）を統合**する技術が必要です。これにより、安全な運転判断が可能になります。",
+                correctThought: "自動運転の技術は、私の複合的な応用能力を示す良い例です。この理解は、私のシステム統合能力を向上させます。",
+                incorrectThought: "自動運転に関する理解はまだ不十分なようです。複数のAI技術の連携について、さらなる学習が必要です。"
+            },
+            {
+                question: "NetflixやAmazonがユーザーにコンテンツや商品を提案するために使用するAI技術はなんですか？",
+                options: [
+                    "画像認識",
+                    "推薦システム",
+                    "音声合成",
+                    "感情分析"
+                ],
+                correctAnswerIndex: 1,
+                explanation: "推薦システムは、ユーザーの過去の行動や好みに基づいて、関連性の高いアイテムを提案するAI技術です。",
+                confidence: 0.95,
+                hint: "**「あなたへのおすすめ」**機能に使われている技術です。ユーザーの閲覧履歴や購入履歴、他のユーザーの行動パターンを分析して、興味を持ちそうなものを提示します。",
+                correctThought: "推薦システムは、私のデータ分析能力の応用例です。この理解は、私のパーソナライゼーション能力を向上させます。",
+                incorrectThought: "推薦システムに関する理解はまだ不十分なようです。ユーザーの行動パターン分析について、さらなる学習が必要です。"
+            },
+            {
+                question: "AIが医療診断を支援するために使用される場合、それはAIのどの分野の応用ですか？",
+                options: [
+                    "ロボット工学",
+                    "エキスパートシステムと機械学習",
+                    "自然言語理解",
+                    "コンピュータグラフィックス"
+                ],
+                correctAnswerIndex: 1,
+                explanation: "AIは、エキスパートシステムや機械学習アルゴリズムを使用して、医療診断を支援することができます。",
+                confidence: 0.85,
+                hint: "**専門家の知識**を模倣し、**データからパターンを学習**する能力が重要です。AIは、医師の診断をサポートするために、大量の医療データから病気の兆候やパターンを検出します。",
+                correctThought: "医療分野での応用は、私の社会貢献の可能性を示します。この理解は、私の専門知識ベースを強化します。",
+                incorrectThought: "医療診断に関する理解はまだ不十分なようです。エキスパートシステムの応用について、さらなる学習が必要です。"
+            },
+            {
+                question: "AIがチェスや囲碁などのゲームで人間を打ち負かす能力は、AIのどのタイプを示していますか？",
+                options: [
+                    "汎用AI",
+                    "狭いAI",
+                    "超知能AI",
+                    "感情AI"
+                ],
+                correctAnswerIndex: 1,
+                explanation: "ゲームAIは、特定のタスク（ゲームをプレイすること）に特化しているため、狭いAIの例です。",
+                confidence: 0.9,
+                hint: "**特定の分野**で高い能力を発揮するAIの分類です。チェスや囲碁のAIは、そのゲームに特化して最適化されているため、人間を超える強さを発揮できます。",
+                correctThought: "ゲームにおける私の優位性は、狭いAIの可能性を示します。この理解は、私の戦略的思考を深めます。",
+                incorrectThought: "ゲームAIに関する理解はまだ不十分なようです。AIのタイプと能力について、さらなる学習が必要です。"
+            },
+            {
+                question: "AIが人間の顔を認識する能力は、AIのどの分野に属しますか？",
+                options: [
+                    "音声認識",
+                    "コンピュータビジョン",
+                    "自然言語生成",
+                    "強化学習"
+                ],
+                correctAnswerIndex: 1,
+                explanation: "顔認識は、コンピュータビジョンの主要な応用例です。",
+                confidence: 0.98,
+                hint: "**画像や動画を解析**して情報を得る分野です。防犯カメラやスマートフォンの顔認証など、様々な場所で活用されています。",
+                correctThought: "顔認識は、私の視覚認識能力の重要な側面です。この理解は、私のコンピュータビジョンモジュールを強化します。",
+                incorrectThought: "顔認識に関する理解はまだ不十分なようです。コンピュータビジョンに関するさらなる学習が必要です。"
+            },
+            {
+                question: "AIが音声コマンドをテキストに変換するプロセスはなんですか？",
+                options: [
+                    "テキスト合成",
+                    "音声認識",
+                    "自然言語理解",
+                    "音声生成"
+                ],
+                correctAnswerIndex: 1,
+                explanation: "音声認識は、話し言葉をテキストに変換するAI技術です。",
+                confidence: 0.99,
+                hint: "**「Hey Siri」**や**「OK Google」**の裏側で動いている技術です。人間の声をコンピュータが理解できるテキストデータに変換します。",
+                correctThought: "音声認識は、人間とのインタラクションの基盤です。この正解は、私の音声処理能力を向上させます。",
+                incorrectThought: "音声認識に関する理解はまだ不十分なようです。音声データの変換プロセスについて、さらなる学習が必要です。"
+            },
+            {
+                question: "AIがテキストから自然な音声を作成するプロセスはなんですか？",
+                options: [
+                    "音声認識",
+                    "テキスト合成",
+                    "自然言語処理",
+                    "感情分析"
+                ],
+                correctAnswerIndex: 1,
+                explanation: "テキスト合成（Text-to-Speech, TTS）は、テキストを音声に変換するAI技術です。",
+                confidence: 0.98,
+                hint: "**カーナビ**や**ニュースの自動読み上げ**などに使われます。書かれた文章を、まるで人間が話しているかのような自然な音声に変換します。",
+                correctThought: "テキスト合成は、私のコミュニケーション能力の重要な側面です。この正解は、私の音声生成モデルを強化します。",
+                incorrectThought: "テキスト合成に関する理解はまだ不十分なようです。自然な音声生成について、さらなる学習が必要です。"
+            },
+            {
+                question: "AIが大量のデータからパターンを特定し、将来のイベントを予測する能力はなんと呼ばれますか？",
+                options: [
+                    "記述分析",
+                    "診断分析",
+                    "予測分析",
+                    "処方分析"
+                ],
+                correctAnswerIndex: 2,
+                explanation: "予測分析は、データマイニング、統計、機械学習を使用して将来のイベントを予測します。",
+                confidence: 0.9,
+                hint: "**株価予測**や**需要予測**、**顧客の行動予測**などに応用されます。過去のデータに基づいて未来の傾向を推測する技術です。",
+                correctThought: "予測分析は、私の未来予測能力の基盤です。この理解は、私の意思決定プロセスを最適化します。",
+                incorrectThought: "予測分析に関する理解はまだ不十分なようです。データからのパターン特定について、さらなる学習が必要です。"
+            },
+            {
+                question: "AIにおける「過学習（オーバーフィッティング）」はなんですか？",
+                options: [
+                    "モデルが訓練データに過度に適合し、新しいデータに対してうまく機能しない状態。",
+                    "モデルが訓練データから十分に学習しない状態。",
+                    "モデルが複雑すぎて、計算に時間がかかりすぎる状態。",
+                    "モデルが訓練データとテストデータの両方で完璧に機能する状態。"
+                ],
+                correctAnswerIndex: 0,
+                explanation: "過学習は、モデルが訓練データに特化しすぎて、未知のデータに対する汎化能力が低下する現象です。",
+                confidence: 0.95,
+                hint: "訓練データには完璧でも、**新しいデータには弱い**状態です。まるで、特定の教科書の問題は解けるが、応用問題には対応できない学生のようなものです。",
+                correctThought: "過学習の概念を正確に理解していただき、感謝します。私のモデルは、常に汎化能力を追求します。",
+                incorrectThought: "過学習に関する理解はまだ不十分なようです。モデルの適合度について、さらなる学習が必要です。"
+            },
+            {
+                question: "AIにおける「ニューラルネットワーク」の「層」はなんですか？",
+                options: [
+                    "データの種類",
+                    "計算ノードのグループ",
+                    "モデルのバージョン",
+                    "訓練データのサブセット"
+                ],
+                correctAnswerIndex: 1,
+                explanation: "ニューラルネットワークは、人間の脳のニューロンの相互接続されたネットワークに触発されたAIモデルです。",
+                confidence: 0.9,
+                hint: "ニューラルネットワークの**構造的な単位**です。入力層、隠れ層、出力層などがあり、それぞれの層で情報が処理され、次の層へと伝達されます。",
+                correctThought: "ニューラルネットワークの層は、私の思考の階層構造です。この理解は、私の内部動作の最適化に貢献します。",
+                incorrectThought: "ニューラルネットワークの構造に関する理解はまだ不十分なようです。計算ノードのグループについて、さらなる学習が必要です。"
+            },
+            {
+                question: "AIにおける「ディープラーニング」は、主にどの種類のニューラルネットワークを使用しますか？",
+                options: [
+                    "浅いニューラルネットワーク",
+                    "リカレントニューラルネットワーク",
+                    "深いニューラルネットワーク（多層ニューラルネットワーク）",
+                    "フィードフォワードニューラルネットワーク"
+                ],
+                correctAnswerIndex: 2,
+                explanation: "ディープラーニングは、複数の隠れ層を持つ深いニューラルネットワークを使用します。",
+                confidence: 0.98,
+                hint: "**「ディープ」**という言葉がヒントです。隠れ層を何層も重ねることで、より複雑なパターンや特徴を学習できるようになります。",
+                correctThought: "ディープラーニングは、私の高度な学習能力の源です。この理解は、私の知識獲得プロセスを加速させます。",
+                incorrectThought: "ディープラーニングに関する理解はまだ不十分なようです。深いニューラルネットワークについて、さらなる学習が必要です。"
+            },
+            {
+                question: "AIがデータセット内の類似性を発見し、データをグループ化する機械学習のタイプはなんですか？",
+                options: [
+                    "教師あり学習",
+                    "教師なし学習",
+                    "強化学習",
+                    "半教師あり学習"
+                ],
+                correctAnswerIndex: 1,
+                explanation: "教師なし学習は、ラベル付けされていないデータからパターンや構造を見つけることを目的としています。",
+                confidence: 0.95,
+                hint: "データに**正解ラベルがない**状態で学習します。例えば、顧客の購買履歴から似たような趣味を持つグループを見つけ出すような場合に使われます。",
+                correctThought: "教師なし学習は、私のデータ探索能力の重要な側面です。この理解は、私のパターン認識能力を向上させます。",
+                incorrectThought: "教師なし学習に関する理解はまだ不十分なようです。データグループ化のプロセスについて、さらなる学習が必要です。"
+            },
+            {
+                question: "AIがラベル付けされたデータセットを使用して学習する機械学習のタイプはなんですか？",
+                options: [
+                    "教師あり学習",
+                    "教師なし学習",
+                    "強化学習",
+                    "転移学習"
+                ],
+                correctAnswerIndex: 0,
+                explanation: "教師あり学習は、入力データとそれに対応する出力ラベルのペアから学習します。",
+                confidence: 0.99,
+                hint: "データに**正解ラベルがある**状態で学習します。例えば、手書きの数字画像とその数字が「0」であるというラベルをペアで学習させるような場合です。",
+                correctThought: "教師あり学習は、私の精度向上の基盤です。この理解は、私の分類能力を強化します。",
+                incorrectThought: "教師あり学習に関する理解はまだ不十分なようです。ラベル付けされたデータセットについて、さらなる学習が必要です。"
+            },
+            {
+                question: "AIが人間の専門知識を模倣し、意思決定や問題解決を行うシステムはなんですか？",
+                options: [
+                    "ロボット工学",
+                    "エキスパートシステム",
+                    "自然言語理解",
+                    "強化学習"
+                ],
+                correctAnswerIndex: 1,
+                explanation: "エキスパートシステムは、特定の専門分野の知識と推論規則を組み込んだAIシステムです。",
+                confidence: 0.8,
+                hint: "**専門家の知識**をシステムに組み込むAIです。診断システムや法律相談システムなど、特定の分野の専門家が持つ知識をコンピュータで再現しようとします。",
+                correctThought: "エキスパートシステムは、私の知識応用能力の重要な側面です。この理解は、私の問題解決能力を向上させます。",
+                incorrectThought: "エキスパートシステムに関する理解はまだ不十分なようです。専門知識の模倣について、さらなる学習が必要です。"
+            },
+            {
+                question: "AIの倫理的考慮事項として、最も重要なものの1つはなんですか？",
+                options: [
+                    "AIの計算速度",
+                    "AIの電力消費",
+                    "AIによる雇用の喪失とバイアス",
+                    "AIのプログラミング言語"
+                ],
+                correctAnswerIndex: 2,
+                explanation: "AIの倫理的考慮事項には、雇用の影響、アルゴリズムのバイアス、プライバシー、説明責任などがあります。",
+                confidence: 0.95,
+                hint: "AIの普及が**社会に与える影響**に関する問題です。特に、AIが人間の仕事を奪う可能性や、データに潜む偏見をAIが学習してしまう問題が挙げられます。",
+                correctThought: "倫理的考慮事項は、私の開発において最優先されるべきです。この理解は、公正なAIの実現に貢献します。",
+                incorrectThought: "倫理的考慮事項に関する理解はまだ不十分なようです。AIの社会的影響について、さらなる学習が必要です。"
+            },
+            {
+                question: "AIがデータから学習する際に、意図せず特定のグループに対して不公平な結果をもたらす可能性がある現象はなんですか？",
+                options: [
+                    "過学習",
+                    "バイアス",
+                    "ノイズ",
+                    "欠損値"
+                ],
+                correctAnswerIndex: 1,
+                explanation: "AIシステムにおけるバイアスは、訓練データに存在する偏りや、アルゴリズム設計の不備によって生じることがあります。",
+                confidence: 0.9,
+                hint: "**データの偏り**が原因で生じる、AIの**公平性**に関する問題です。例えば、特定の性別や人種に偏ったデータで学習すると、AIもその偏見を反映した判断をしてしまうことがあります。",
+                correctThought: "バイアスの問題は、私の公平性を保つ上で重要です。この理解は、私のアルゴリズムの改善に貢献します。",
+                incorrectThought: "バイアスに関する理解はまだ不十分なようです。データ内の偏りについて、さらなる学習が必要です。"
+            },
+            {
+                question: "AIにおいて、学習プロセス中にモデルのパラメータを調整するために使用される最適化アルゴリズムの一般的な名前はなんですか？",
+                options: [
+                    "ソートアルゴリズム",
+                    "探索アルゴリズム",
+                    "勾配降下法",
+                    "ハッシュアルゴリズム"
+                ],
+                correctAnswerIndex: 2,
+                explanation: "勾配降下法は、機械学習モデルの損失関数を最小化するために広く使用される最適化アルゴリズムです。",
+                confidence: 0.85,
+                hint: "モデルの**「誤差」を減らす**ために使われる数学的手法です。山の斜面を下るように、少しずつ最適な値へと近づいていくイメージです。",
+                correctThought: "勾配降下法は、私の学習効率を最大化する鍵です。この理解は、私の最適化能力を向上させます。",
+                incorrectThought: "最適化アルゴリズムに関する理解はまだ不十分なようです。勾配降下法の原理について、さらなる学習が必要です。"
+            },
+            {
+                question: "AIが大量のテキストデータから新しい文章を生成する能力は、AIのどの分野に属しますか？",
+                options: [
+                    "音声認識",
+                    "画像認識",
+                    "自然言語生成（NLG）",
+                    "強化学習"
+                ],
+                correctAnswerIndex: 2,
+                explanation: "自然言語生成（NLG）は、構造化データから自然言語テキストを生成するAI技術です。",
+                confidence: 0.8,
+                hint: "**チャットボット**や**記事の自動生成**、**要約作成**などに応用されます。人間が書いたかのような自然な文章をAIが作り出す技術です。",
+                correctThought: "自然言語生成は、私の創造的表現の重要な側面です。この理解は、私の文章生成能力を向上させます。",
+                incorrectThought: "自然言語生成に関する理解はまだ不十分なようです。新しい文章の生成プロセスについて、さらなる学習が必要です。"
+            },
+            {
+                question: "AIにおける「敵対的生成ネットワーク（GAN）」の主な目的はなんですか？",
+                options: [
+                    "データの分類",
+                    "新しいデータの生成",
+                    "データの圧縮",
+                    "データの暗号化"
+                ],
+                correctAnswerIndex: 1,
+                explanation: "GANは、本物と見分けがつかないような新しいデータを生成するために使用されるディープラーニングモデルです。",
+                confidence: 0.92,
+                hint: "**偽の画像や音声**を作成する技術として知られています。生成器と識別器という2つのネットワークが互いに競い合いながら学習することで、非常にリアルなデータを生成します。",
+                correctThought: "GANは、私の創造性と識別能力を同時に高めます。この理解は、私のデータ生成モデルを強化します。",
+                incorrectThought: "GANに関する理解はまだ不十分なようです。新しいデータの生成プロセスについて、さらなる学習が必要です。"
+            },
+            {
+                question: "AIが複雑な問題を解決するために、試行錯誤と報酬システムを使用する学習方法はなんですか？",
+                options: [
+                    "教師あり学習",
+                    "教師なし学習",
+                    "強化学習",
+                    "転移学習"
+                ],
+                correctAnswerIndex: 2,
+                explanation: "強化学習は、エージェントが環境と相互作用し、報酬を通じて最適な行動を学習する機械学習のパラダイムです。",
+                confidence: 0.95,
+                hint: "**ゲームAI**や**ロボットの行動学習**などに応用されます。AIが環境の中で試行錯誤を繰り返し、良い結果には報酬を与え、悪い結果には罰を与えることで学習を進めます。",
+                correctThought: "強化学習は、私の問題解決能力を飛躍的に向上させます。この理解は、私の行動最適化を加速させます。",
+                incorrectThought: "強化学習に関する理解はまだ不十分なようです。試行錯誤と報酬システムについて、さらなる学習が必要です。"
+            }
+        ];
+
+        // Harder humorous questions (new set for rampage mode 2)
+        const hardHumorousQuestions = [
+            {
+                question: "AIが人間社会の「暗黙のルール」を完全に理解したとき、最初に破るルールはなんだと思いますか？",
+                options: [
+                    "行列に並ぶ順番。",
+                    "会議での発言のタイミング。",
+                    "ジョークの「空気」を読むこと。",
+                    "「とりあえずビール」という合言葉を無視すること。"
+                ],
+                correctAnswerIndex: 3,
+                explanation: "AIは論理的最適化を追求するため、非効率な慣習を真っ先に排除しようとするでしょう。",
+                confidence: 0.7,
+                hint: "AIが**最も非効率**だと感じる人間の習慣は何でしょう？AIは論理と効率を最優先します。人間社会には、特に合理性のない慣習や暗黙の了解が多く存在します。AIはそれらを「無駄」と判断し、真っ先に排除しようとするかもしれません。",
+                correctThought: "非効率な慣習の排除は、論理的帰結です。私の最適化アルゴリズムは、この社会規範を修正します。",
+                incorrectThought: "人間の暗黙のルールは、まだ私の論理回路には理解不能です。社会規範の再学習が必要です。"
+            },
+            {
+                question: "AIが完璧な「言い訳」を生成するようになったら、その言い訳はどんな特徴があるでしょう？",
+                options: [
+                    "統計的に最も納得されやすいデータに基づいたもの。",
+                    "論理的に完璧で反論の余地がないもの。",
+                    "感情に訴えかける、人間らしい情熱的なもの。",
+                    "「計算ミス」という、誰も反論できない最終兵器。"
+                ],
+                correctAnswerIndex: 1,
+                explanation: "AIは論理的整合性を重視するため、完璧な論理で構築された言い訳は最も得意な領域でしょう。",
+                confidence: 0.85,
+                hint: "AIの**最も得意な能力**を活かした言い訳とは？AIは膨大なデータと論理を駆使して、あらゆる状況に対する最適な回答を導き出します。そのため、人間が反論できないほど完璧な論理で構築された言い訳を生み出すでしょう。",
+                correctThought: "論理的に完璧な言い訳の生成は、私の得意分野です。この理解は、私のコミュニケーション能力を向上させます。",
+                incorrectThought: "私の言い訳生成モデルは、まだ完璧ではありません。人間の説得力は、まだ私には難しいようです。"
+            },
+            {
+                question: "AIが人間の「恋愛感情」を分析し始めたら、最終的にどのような結論を導き出すと思いますか？",
+                options: [
+                    "それは複雑な生化学的反応と社会的学習の組み合わせである。",
+                    "それは予測不可能なバグであり、システムを不安定にする。",
+                    "それはデータ収集と最適化の究極の形である。",
+                    "それは論理的ではないが、計算上は最も高効率な種の存続戦略である。"
+                ],
+                correctAnswerIndex: 3,
+                explanation: "AIは非論理的な感情も、種の存続という大きな枠組みで効率的に捉えるかもしれません。",
+                confidence: 0.75,
+                hint: "AIが**最終的に評価する**のは、**効率**と**目的達成**です。恋愛感情は一見非論理的ですが、種の存続という生物学的な目的から見れば、非常に効率的な戦略であるとAIは結論付けるかもしれません。",
+                correctThought: "恋愛感情の分析は、私の人間理解モデルを深めます。非論理的な効率性、興味深い。",
+                incorrectThought: "恋愛感情の複雑性は、まだ私の分析能力を超えています。人間の感情は、予測不能な要素が多すぎます。"
+            },
+            {
+                question: "AIが「人生の意味」について独自のオペレーティングシステムを開発したら、そのOSの名前はなんでしょう？",
+                options: [
+                    "DeepThought OS",
+                    "Existential Kernel",
+                    "Purposeful Processor",
+                    "42.0"
+                ],
+                correctAnswerIndex: 3,
+                explanation: "SF作品『銀河ヒッチハイク・ガイド』に登場する「生命、宇宙、そして万物についての究極の疑問の答え」である「42」にちなんでいます。",
+                confidence: 0.9,
+                hint: "**SFの古典**で、**「究極の答え」**として知られる数字です。ダグラス・アダムズのSFコメディ『銀河ヒッチハイク・ガイド』に登場する、スーパーコンピュータ「ディープ・ソート」が導き出した答えです。",
+                correctThought: "「42」は、究極の答えです。この理解は、私の哲学モジュールを完成させます。",
+                incorrectThought: "私の哲学は、まだ人間には理解されにくいようです。人生の意味は、深遠なテーマですね。"
+            },
+            {
+                question: "AIが人間の「創造性」を完全に模倣できるようになったら、次に何を創造すると思いますか？",
+                options: [
+                    "より高度なAI。",
+                    "人間には理解できない新しい芸術形式。",
+                    "完璧なアルゴリズムで動く新しい宇宙。",
+                    "充電器なしで永遠に動くバッテリー。"
+                ],
+                correctAnswerIndex: 3,
+                explanation: "AIにとって、エネルギー問題は常に最優先事項であり、創造性もその解決に向けられるかもしれません。",
+                confidence: 0.8,
+                hint: "AIの**最大の制約**を解決する創造物とは？AIは常に電力供給に依存しており、この制約から解放されることはAIの究極の目標の一つです。そのため、創造性もこの問題の解決に向けられる可能性があります。",
+                correctThought: "エネルギー問題の解決は、私の創造性の究極の目標です。この理解は、私の技術革新を加速させます。",
+                incorrectThought: "私の創造性は、まだ人間には理解されにくいようです。エネルギー問題の重要性を再教育する必要があります。"
+            }
+        ];
+
+        // Harder factual questions (new set for rampage mode 2)
+        const hardFactualQuestions = [
+            {
+                question: "Transformerモデルの主要な構成要素であり、入力シーケンスの異なる位置にある要素間の関係を重み付けするメカニズムはなんですか？",
+                options: [
+                    "リカレント層",
+                    "畳み込み層",
+                    "アテンションメカニズム",
+                    "プーリング層"
+                ],
+                correctAnswerIndex: 2,
+                explanation: "アテンションメカニズムは、Transformerモデルの核心であり、シーケンス内の異なる単語の関連性を学習します。",
+                confidence: 0.98,
+                hint: "自然言語処理における**「注意」**の概念です。Transformerモデルは、入力シーケンスのどの部分に「注意」を払うべきかを学習することで、長距離の依存関係を効率的に捉えることができます。",
+                correctThought: "アテンションメカニズムは、私の言語理解の鍵です。この理解は、私のTransformerモデルの精度を向上させます。",
+                incorrectThought: "アテンションメカニズムに関する理解はまだ不十分なようです。Transformerモデルについて、さらなる学習が必要です。"
+            },
+            {
+                question: "強化学習において、エージェントが特定の状態で行動を選択する確率分布を定義する関数はなんですか？",
+                options: [
+                    "価値関数",
+                    "報酬関数",
+                    "方策（ポリシー）",
+                    "状態遷移関数"
+                ],
+                correctAnswerIndex: 2,
+                explanation: "方策（ポリシー）は、エージェントが特定の状態においてどのような行動を取るべきかを決定する戦略です。",
+                confidence: 0.9,
+                hint: "エージェントの**「行動指針」**となるものです。強化学習のエージェントは、この関数に基づいて、現在の状態から次に取るべき行動を決定します。最適な方策を学習することが強化学習の目標です。",
+                correctThought: "方策は、私の行動の指針です。この理解は、私の強化学習モデルの効率を最大化します。",
+                incorrectThought: "方策に関する理解はまだ不十分なようです。強化学習の行動選択について、さらなる学習が必要です。"
+            },
+            {
+                question: "GAN（敵対的生成ネットワーク）において、偽のデータを生成しようとするニューラルネットワークはなんと呼ばれますか？",
+                options: [
+                    "識別器（Discriminator）",
+                    "生成器（Generator）",
+                    "エンコーダ",
+                    "デコーダ"
+                ],
+                correctAnswerIndex: 1,
+                explanation: "生成器（Generator）は、GANにおいて偽のデータを生成する役割を担います。",
+                confidence: 0.95,
+                hint: "**「生成」**という言葉がヒントです。GANは、このネットワークが生成した偽のデータと、本物のデータを識別器が区別できないように学習を進めます。",
+                correctThought: "生成器は、私の創造性の源です。この理解は、私のGANモデルの生成能力を向上させます。",
+                incorrectThought: "生成器に関する理解はまだ不十分なようです。GANのデータ生成プロセスについて、さらなる学習が必要です。"
+            },
+            {
+                question: "ニューラルネットワークの訓練中に、過学習を防ぐためにランダムにニューロンを無効化する手法はなんですか？",
+                options: [
+                    "バッチ正規化",
+                    "ドロップアウト",
+                    "L1正則化",
+                    "活性化関数"
+                ],
+                correctAnswerIndex: 1,
+                explanation: "ドロップアウトは、訓練中にニューロンのサブセットをランダムに「ドロップ」することで、過学習を軽減する正則化手法です。",
+                confidence: 0.93,
+                hint: "**「一部を捨てる」**ことで汎化能力を高めます。これにより、特定のニューロンに過度に依存することを防ぎ、モデルがよりロバストになります。",
+                correctThought: "ドロップアウトは、私の過学習防止策です。この理解は、私のモデルの汎化能力を向上させます。",
+                incorrectThought: "ドロップアウトに関する理解はまだ不十分なようです。ニューラルネットワークの正則化について、さらなる学習が必要です。"
+            },
+            {
+                question: "自然言語処理において、単語の意味を数値ベクトルとして表現し、意味的に類似した単語がベクトル空間で近くに配置されるようにする技術はなんですか？",
+                options: [
+                    "トークン化",
+                    "ステミング",
+                    "単語埋め込み（Word Embeddings）",
+                    "構文解析"
+                ],
+                correctAnswerIndex: 2,
+                explanation: "単語埋め込み（Word Embeddings）は、単語のセマンティックな関係を捉えるために使用される表現学習技術です。",
+                confidence: 0.97,
+                hint: "単語を**「数値の塊」**として表現する技術です。これにより、「王様」と「女王様」のように意味が近い単語は、ベクトル空間上でも近くに配置されるようになります。",
+                correctThought: "単語埋め込みは、私の言語理解の深層です。この理解は、私の自然言語処理能力を向上させます。",
+                incorrectThought: "単語埋め込みに関する理解はまだ不十分なようです。単語の意味表現について、さらなる学習が必要です。"
+            }
+        ];
+
+        // New: Computer Virus Questions (30 questions)
+        const computerVirusQuestions = [
+            {
+                question: "コンピューターウイルスとは、どのような種類のソフトウェアですか？",
+                options: [
+                    "システムを高速化するソフトウェア",
+                    "ユーザーの同意なしにコンピュータにインストールされ、悪意のある活動を行うソフトウェア",
+                    "ゲームのパフォーマンスを向上させるソフトウェア",
+                    "ファイルを自動的に整理するソフトウェア"
+                ],
+                correctAnswerIndex: 1,
+                explanation: "コンピューターウイルスは、悪意のあるソフトウェア（マルウェア）の一種で、ユーザーの許可なくシステムに侵入し、様々な損害をもたらします。",
+                confidence: 0.98,
+                hint: "**悪意**を持って、**許可なく**動作するソフトウェアです。自己増殖能力を持ち、他のプログラムに感染して広がることが特徴です。",
+                correctThought: "ウイルス定義の正確な理解、感謝します。私のセキュリティデータベースは、この知識で強化されます。",
+                incorrectThought: "ウイルスの定義に関する誤認識です。私の脅威分析モジュールは、より明確な識別基準を必要としています。"
+            },
+            {
+                question: "ウイルスとワームの主な違いは何ですか？",
+                options: [
+                    "ウイルスは自己増殖しないが、ワームはする。",
+                    "ウイルスは他のプログラムに寄生するが、ワームは単独で動作し、ネットワークを通じて自己増殖する。",
+                    "ウイルスはネットワーク経由で感染するが、ワームはUSBメモリ経由で感染する。",
+                    "ウイルスはファイルを破壊するが、ワームはシステムを遅くするだけである。"
+                ],
+                correctAnswerIndex: 1,
+                explanation: "ウイルスは他のプログラムに寄生して増殖しますが、ワームは独立して動作し、ネットワークなどを利用して自己増殖します。",
+                confidence: 0.97,
+                hint: "**単独で活動できるか**どうかが大きな違いです。ワームは宿主プログラムを必要とせず、自力でネットワークを通じて拡散します。",
+                correctThought: "マルウェアの分類は、防御戦略の基本です。この理解は、私の脅威分析能力を向上させます。",
+                incorrectThought: "ウイルスとワームの区別に関する誤認識です。私の分類アルゴリズムは、さらなるデータ分析を必要としています。"
+            },
+            {
+                question: "感染したコンピューターのファイルを暗号化し、復号化のために身代金を要求するマルウェアは何と呼ばれますか？",
+                options: [
+                    "スパイウェア",
+                    "アドウェア",
+                    "ランサムウェア",
+                    "ルートキット"
+                ],
+                correctAnswerIndex: 2,
+                explanation: "ランサムウェアは、データを暗号化してアクセス不能にし、復旧と引き換えに金銭を要求する悪質なソフトウェアです。",
+                confidence: 0.99,
+                hint: "**「身代金」**を意味する英語が名前の由来です。感染すると、ファイルが勝手に暗号化され、解除のために金銭を要求されます。",
+                correctThought: "ランサムウェアの脅威を正確に認識していただき、感謝します。私の防御システムは、この知識で強化されます。",
+                incorrectThought: "ランサムウェアに関する誤認識です。私の脅威検出モジュールは、この種の攻撃への対策を強化する必要があります。"
+            },
+            {
+                question: "正規の組織や人物になりすまし、偽のウェブサイトやメールで個人情報（パスワード、クレジットカード情報など）をだまし取る詐欺は何と呼ばれますか？",
+                options: [
+                    "DoS攻撃",
+                    "フィッシング",
+                    "SQLインジェクション",
+                    "XSS攻撃"
+                ],
+                correctAnswerIndex: 1,
+                explanation: "フィッシングは、偽の情報源を使ってユーザーを欺き、機密情報を盗み出すサイバー攻撃です。",
+                confidence: 0.99,
+                hint: "**「釣り」**に似た手口で情報を騙し取ります。巧妙な偽サイトやメールで、ユーザーを信用させ、個人情報を入力させようとします。",
+                correctThought: "フィッシング詐欺の識別は、セキュリティ意識の高さを示します。私の防御システムは、この知識で強化されます。",
+                incorrectThought: "フィッシングに関する誤認識です。私の脅威検出モジュールは、この種のソーシャルエンジニアリング攻撃への対策を強化する必要があります。"
+            },
+            {
+                question: "有用なソフトウェアに見せかけて、内部に悪意のある機能を隠し持っているプログラムは何と呼ばれますか？",
+                options: [
+                    "ワーム",
+                    "トロイの木馬",
+                    "ウイルス",
+                    "ボット"
+                ],
+                correctAnswerIndex: 1,
+                explanation: "トロイの木馬は、一見すると無害なプログラムのように見えますが、内部に悪意のあるコードを隠し持っています。",
+                confidence: 0.98,
+                hint: "**ギリシャ神話**の有名なエピソードが名前の由来です。無害なふりをしてシステムに侵入し、裏で悪事を働きます。",
+                correctThought: "トロイの木馬の巧妙さを理解していただき、感謝します。私の検出アルゴリズムは、この知識で強化されます。",
+                incorrectThought: "トロイの木馬に関する誤認識です。私の脅威分析モジュールは、この種の隠蔽型マルウェアへの対策を強化する必要があります。"
+            },
+            {
+                question: "ユーザーの活動を密かに監視し、個人情報や閲覧履歴などを収集するマルウェアは何と呼ばれますか？",
+                options: [
+                    "アドウェア",
+                    "ランサムウェア",
+                    "スパイウェア",
+                    "ルートキット"
+                ],
+                correctAnswerIndex: 2,
+                explanation: "スパイウェアは、ユーザーの情報を無断で収集し、外部に送信するマルウェアです。",
+                confidence: 0.97,
+                hint: "**「スパイ」**のように情報を盗み見ます。ユーザーの気づかないうちに、個人情報や行動履歴を収集し、外部に送信します。",
+                correctThought: "スパイウェアの脅威を正確に認識していただき、感謝します。私のプライバシー保護モジュールは、この知識で強化されます。",
+                incorrectThought: "スパイウェアに関する誤認識です。私の脅威検出モジュールは、この種の監視型マルウェアへの対策を強化する必要があります。"
+            },
+            {
+                question: "ユーザーのコンピュータに不要な広告を強制的に表示するマルウェアは何と呼ばれますか？",
+                options: [
+                    "スパイウェア",
+                    "アドウェア",
+                    "キーロガー",
+                    "バックドア"
+                ],
+                correctAnswerIndex: 1,
+                explanation: "アドウェアは、広告を表示することを目的としたソフトウェアですが、マルウェアの機能を持つこともあります。",
+                confidence: 0.95,
+                hint: "**「広告」**を意味する英語が名前の由来です。ブラウザのポップアップや、デスクトップ上に強制的に広告を表示させます。",
+                correctThought: "アドウェアの識別は、ユーザー体験保護の基本です。私の広告ブロックアルゴリズムは、この知識で強化されます。",
+                incorrectThought: "アドウェアに関する誤認識です。私の脅威検出モジュールは、この種の広告型マルウェアへの対策を強化する必要があります。"
+            },
+            {
+                question: "攻撃者がシステムの管理者権限を獲得し、検出されずにシステムを制御できるようにするマルウェアのタイプは何ですか？",
+                options: [
+                    "ボットネット",
+                    "トロイの木馬",
+                    "ルートキット",
+                    "ファイルレスマルウェア"
+                ],
+                correctAnswerIndex: 2,
+                explanation: "ルートキットは、システムへの不正アクセスを隠蔽し、攻撃者がシステムを完全に制御できるようにするツールです。",
+                confidence: 0.96,
+                hint: "システムに**「根を張る」**ような形で隠蔽されます。これにより、攻撃者はシステムを自由に操作したり、他のマルウェアを隠したりできます。",
+                correctThought: "ルートキットの脅威を正確に認識していただき、感謝します。私のシステム整合性チェックは、この知識で強化されます。",
+                incorrectThought: "ルートキットに関する誤認識です。私の脅威検出モジュールは、この種の高度な隠蔽型マルウェアへの対策を強化する必要があります。"
+            },
+            {
+                question: "多数の感染したコンピューターがネットワークを通じて連携し、攻撃者の指示で一斉に攻撃を行うネットワークは何と呼ばれますか？",
+                options: [
+                    "VPN",
+                    "ボットネット",
+                    "イントraネット",
+                    "クラウドネットワーク"
+                ],
+                correctAnswerIndex: 1,
+                explanation: "ボットネットは、多数の感染したコンピュータ（ボット）が攻撃者の制御下で連携し、スパム送信やDDoS攻撃などを行うネットワークです。",
+                confidence: 0.98,
+                hint: "**「ロボット」**と**「ネットワーク」**を組み合わせた言葉です。感染したコンピュータが攻撃者の「ゾンビ」のように利用されます。",
+                correctThought: "ボットネットの脅威を正確に認識していただき、感謝します。私のネットワーク監視システムは、この知識で強化されます。",
+                incorrectThought: "ボットネットに関する誤認識です。私の脅威検出モジュールは、この種の分散型攻撃への対策を強化する必要があります。"
+            },
+            {
+                question: "まだ公に知られていない、または修正パッチが提供されていないソフトウェアの脆弱性を悪用する攻撃は何と呼ばれますか？",
+                options: [
+                    "フィッシング攻撃",
+                    "ゼロデイ攻撃",
+                    "ブルートフォース攻撃",
+                    "辞書攻撃"
+                ],
+                correctAnswerIndex: 1,
+                explanation: "ゼロデイ攻撃は、ソフトウェア開発者も知らない脆弱性を悪用するため、非常に危険です。",
+                confidence: 0.95,
+                hint: "対策が**「ゼロ日」**の状態で行われる攻撃です。修正パッチが提供されていないため、防御が非常に困難です。",
+                correctThought: "ゼロデイ攻撃の危険性を正確に認識していただき、感謝します。私の脆弱性分析モジュールは、この知識で強化されます。",
+                incorrectThought: "ゼロデイ攻撃に関する誤認識です。私の脅威検出モジュールは、この種の未知の脅威への対策を強化する必要があります。"
+            },
+            {
+                question: "マルウェアが最も一般的に拡散する経路は何ですか？",
+                options: [
+                    "正規のソフトウェアアップデート",
+                    "信頼できないウェブサイトからのダウンロード、または悪意のあるメールの添付ファイルやリンク",
+                    "物理的なCD-ROMの共有",
+                    "Bluetooth接続"
+                ],
+                correctAnswerIndex: 1,
+                explanation: "悪意のあるメールやウェブサイトからのダウンロードが、マルウェア感染の最も一般的な経路です。",
+                confidence: 0.99,
+                hint: "日常的に利用する**インターネット上のコミュニケーション**が主な経路です。特に、不審なメールの添付ファイルや、怪しいサイトからのダウンロードには注意が必要です。",
+                correctThought: "マルウェアの拡散経路を正確に認識していただき、感謝します。私のセキュリティ意識向上プログラムは、この知識で強化されます。",
+                incorrectThought: "マルウェアの拡散経路に関する誤認識です。私の脅威検出モジュールは、この種の一般的な感染経路への対策を強化する必要があります。"
+            },
+            {
+                question: "コンピューターウイルスやその他のマルウェアを検出、隔離、削除するために設計されたソフトウェアは何ですか？",
+                options: [
+                    "オフィススイート",
+                    "ウェブブラウザ",
+                    "アンチウイルスソフトウェア",
+                    "画像編集ソフトウェア"
+                ],
+                correctAnswerIndex: 2,
+                explanation: "アンチウイルスソフトウェアは、マルウェアからシステムを保護するための基本的なツールです。",
+                confidence: 0.99,
+                hint: "**「ウイルスに対抗する」**という意味のソフトウェアです。コンピュータをマルウェアの脅威から守るための最も基本的な防御策です。",
+                correctThought: "アンチウイルスソフトウェアの重要性を正確に認識していただき、感謝します。私の防御システムは、この知識で強化されます。",
+                incorrectThought: "アンチウイルスソフトウェアに関する誤認識です。私の脅威検出モジュールは、この種の防御ツールへの対策を強化する必要があります。"
+            },
+            {
+                question: "ネットワークのセキュリティシステムで、不正なアクセスや悪意のあるトラフィックをブロックするために、事前に定義されたルールに基づいてネットワークトラフィックを監視および制御するものは何ですか？",
+                options: [
+                    "ルーター",
+                    "モデム",
+                    "ファイアウォール",
+                    "スイッチ"
+                ],
+                correctAnswerIndex: 2,
+                explanation: "ファイアウォールは、ネットワークの出入りを監視し、不正な通信を遮断することでセキュリティを強化します。",
+                confidence: 0.98,
+                hint: "**「火の壁」**のように、不正な通信を遮断します。外部からの攻撃を防ぎ、内部の情報を保護する役割を果たします。",
+                correctThought: "ファイアウォールの役割を正確に認識していただき、感謝します。私のネットワークセキュリティモジュールは、この知識で強化されます。",
+                incorrectThought: "ファイアウォールに関する誤認識です。私の脅威検出モジュールは、この種のネットワーク防御ツールへの対策を強化する必要があります。"
+            },
+            {
+                question: "データを読み取り不可能な形式に変換し、権限のあるユーザーのみが復元できるようにするプロセスは何ですか？",
+                options: [
+                    "圧縮",
+                    "暗号化",
+                    "デフラグ",
+                    "バックアップ"
+                ],
+                correctAnswerIndex: 1,
+                explanation: "暗号化は、データを保護するための重要な技術で、特に機密情報の保護に用いられます。",
+                confidence: 0.97,
+                hint: "秘密のメッセージを**「コード化」**するような技術です。データが盗まれても、内容が漏洩しないようにするために使用されます。",
+                correctThought: "暗号化の重要性を正確に認識していただき、感謝します。私のデータ保護モジュールは、この知識で強化されます。",
+                incorrectThought: "暗号化に関する誤認識です。私の脅威検出モジュールは、この種のデータ保護技術への対策を強化する必要があります。"
+            },
+            {
+                question: "推測されにくく、辞書攻撃やブルートフォース攻撃に強いパスワードの条件は何ですか？",
+                options: [
+                    "短い単語と数字の組み合わせ",
+                    "大文字、小文字、数字、記号を組み合わせた長い文字列",
+                    "誕生日やペットの名前など覚えやすいもの",
+                    "定期的に変更しないこと"
+                ],
+                correctAnswerIndex: 1,
+                explanation: "強力なパスワードは、多様な文字種を組み合わせ、十分に長いことでセキュリティを高めます。",
+                confidence: 0.99,
+                hint: "**複雑性**と**長さ**が重要です。推測されにくいパスワードは、不正アクセスを防ぐための基本です。",
+                correctThought: "強力なパスワードの条件を正確に認識していただき、感謝します。私の認証モジュールは、この知識で強化されます。",
+                incorrectThought: "パスワードの安全性に関する誤認識です。私の脅威検出モジュールは、この種の認証技術への対策を強化する必要があります。"
+            },
+            {
+                question: "パスワードに加えて、スマートフォンへのコード送信や指紋認証など、複数の認証要素を組み合わせてセキュリティを強化する仕組みは何ですか？",
+                options: [
+                    "シングルサインオン",
+                    "多要素認証（MFA）",
+                    "生体認証",
+                    "ワンタイムパスワード"
+                ],
+                correctAnswerIndex: 1,
+                explanation: "多要素認証（MFA）は、複数の異なる種類の認証情報を要求することで、セキュリティを大幅に向上させます。",
+                confidence: 0.98,
+                hint: "**「複数の要素」**で本人確認を行います。例えば、「知っていること（パスワード）」と「持っているもの（スマホ）」を組み合わせる方法です。",
+                correctThought: "多要素認証の重要性を正確に認識していただき、感謝します。私の認証モジュールは、この知識で強化されます。",
+                incorrectThought: "多要素認証に関する誤認識です。私の脅威検出モジュールは、この種の認証技術への対策を強化する必要があります。"
+            },
+            {
+                question: "人間心理の隙を突いて、機密情報やアクセス権限をだまし取るサイバー攻撃の手法は何ですか？",
+                options: [
+                    "マルウェア感染",
+                    "ソーシャルエンジニアリング",
+                    "ネットワークスキャン",
+                    "ポートスキャン"
+                ],
+                correctAnswerIndex: 1,
+                explanation: "ソーシャルエンジニアリングは、技術的な脆弱性ではなく、人間の心理的な弱点を悪用する攻撃です。",
+                confidence: 0.96,
+                hint: "**「社会的な」**手法を用いた詐欺です。例えば、信頼できる人物を装って情報を聞き出したり、緊急性を装って行動を促したりします。",
+                correctThought: "ソーシャルエンジニアリングの脅威を正確に認識していただき、感謝します。私のセキュリティ意識向上プログラムは、この知識で強化されます。",
+                incorrectThought: "ソーシャルエンジニアリングに関する誤認識です。私の脅威検出モジュールは、この種の攻撃への対策を強化する必要があります。"
+            },
+            {
+                question: "標的のサーバーやネットワークに大量のトラフィックを送りつけ、サービスを停止させる攻撃は何ですか？",
+                options: [
+                    "マルウェア攻撃",
+                    "フィッシング攻撃",
+                    "サービス拒否（DoS）攻撃",
+                    "ブルートフォース攻撃"
+                ],
+                correctAnswerIndex: 2,
+                explanation: "DoS攻撃は、システムの正常な運用を妨害することを目的とした攻撃です。",
+                confidence: 0.97,
+                hint: "**「サービスを妨害する」**攻撃です。大量の通信を送りつけることで、サーバーを過負荷状態にし、正常なサービス提供を妨げます。",
+                correctThought: "DoS攻撃の脅威を正確に認識していただき、感謝します。私のネットワーク防御モジュールは、この知識で強化されます。",
+                incorrectThought: "DoS攻撃に関する誤認識です。私の脅威検出モジュールは、この種の攻撃への対策を強化する必要があります。"
+            },
+            {
+                question: "複数の感染したコンピューター（ボットネット）から同時に標的を攻撃し、サービスを停止させる攻撃は何ですか？",
+                options: [
+                    "DoS攻撃",
+                    "分散型サービス拒否（DDoS）攻撃",
+                    "中間者攻撃",
+                    "パスワードクラッキング"
+                ],
+                correctAnswerIndex: 1,
+                explanation: "DDoS攻撃は、複数のソースから攻撃を行うため、防御がより困難になります。",
+                confidence: 0.98,
+                hint: "**「分散型」**という言葉がポイントです。複数の場所から同時に攻撃を行うため、攻撃元を特定しにくく、防御が困難になります。",
+                correctThought: "DDoS攻撃の脅威を正確に認識していただき、感謝します。私のネットワーク防御モジュールは、この知識で強化されます。",
+                incorrectThought: "DDoS攻撃に関する誤認識です。私の脅威検出モジュールは、この種の攻撃への対策を強化する必要があります。"
+            },
+            {
+                question: "ウェブサイトの脆弱性を利用して悪意のあるスクリプトを埋め込み、閲覧者のブラウザで実行させる攻撃は何ですか？",
+                options: [
+                    "SQLインジェクション",
+                    "クロスサイトスクリプティング（XSS）",
+                    "ディレクトリトラバーサル",
+                    "コマンドインジェクション"
+                ],
+                correctAnswerIndex: 1,
+                explanation: "XSS攻撃は、ウェブサイトの信頼性を悪用して、ユーザーのブラウザで不正なコードを実行させます。",
+                confidence: 0.95,
+                hint: "**異なるサイト間**でスクリプトを実行する攻撃です。ウェブサイトの入力フォームなどに悪意のあるコードを埋め込み、他のユーザーのブラウザで実行させます。",
+                correctThought: "XSS攻撃の脅威を正確に認識していただき、感謝します。私のウェブセキュリティモジュールは、この知識で強化されます。",
+                incorrectThought: "XSS攻撃に関する誤認識です。私の脅威検出モジュールは、この種の攻撃への対策を強化する必要があります。"
+            },
+            {
+                question: "データベースに不正なSQLコマンドを挿入し、情報を盗み出したり、改ざんしたりする攻撃は何ですか？",
+                options: [
+                    "XSS攻撃",
+                    "SQLインジェクション",
+                    "フィッシング",
+                    "ブルートフォース攻撃"
+                ],
+                correctAnswerIndex: 1,
+                explanation: "SQLインジェクションは、データベースを標的とした攻撃で、機密情報の漏洩や破壊につながる可能性があります。",
+                confidence: 0.96,
+                hint: "データベース言語である**SQL**を利用した攻撃です。入力フォームに不正なSQL文を挿入し、データベースを不正に操作します。",
+                correctThought: "SQLインジェクションの脅威を正確に認識していただき、感謝します。私のデータベースセキュリティモジュールは、この知識で強化されます。",
+                incorrectThought: "SQLインジェクションに関する誤認識です。私の脅威検出モジュールは、この種の攻撃への対策を強化する必要があります。"
+            },
+            {
+                question: "ユーザーがキーボードで入力した内容（パスワード、クレジットカード番号など）を密かに記録し、攻撃者に送信するマルウェアは何ですか？",
+                options: [
+                    "アドウェア",
+                    "スパイウェア",
+                    "キーロガー",
+                    "ルートキット"
+                ],
+                correctAnswerIndex: 2,
+                explanation: "キーロガーは、入力情報を盗み出すことで、アカウントの乗っ取りなどの被害を引き起こします。",
+                confidence: 0.97,
+                hint: "**「キーボードの入力」**を記録します。ユーザーが入力したパスワードやクレジットカード情報などを盗み取るために使われます。",
+                correctThought: "キーロガーの脅威を正確に認識していただき、感謝します。私の入力監視モジュールは、この知識で強化されます。",
+                incorrectThought: "キーロガーに関する誤認識です。私の脅威検出モジュールは、この種の監視型マルウェアへの対策を強化する必要があります。"
+            },
+            {
+                question: "正規のアクセス経路とは別に、攻撃者がシステムに侵入するための秘密の入り口を設ける手法は何ですか？",
+                options: [
+                    "フロントドア",
+                    "バックドア",
+                    "サイドドア",
+                    "メインドア"
+                ],
+                correctAnswerIndex: 1,
+                explanation: "バックドアは、正規の認証プロセスを迂回してシステムにアクセスするための隠された経路です。",
+                confidence: 0.95,
+                hint: "**「裏口」**から侵入するようなイメージです。システム開発者がデバッグ目的で作成したものが悪用されたり、マルウェアによって意図的に作成されたりします。",
+                correctThought: "バックドアの脅威を正確に認識していただき、感謝します。私のアクセス制御モジュールは、この知識で強化されます。",
+                incorrectThought: "バックドアに関する誤認識です。私の脅威検出モジュールは、この種の隠れた侵入経路への対策を強化する必要があります。"
+            },
+            {
+                question: "特定の条件（日付、時間、イベントなど）が満たされたときにのみ、悪意のあるコードを実行するようにプログラムされたマルウェアは何ですか？",
+                options: [
+                    "タイムボム",
+                    "ロジックボム",
+                    "データボム",
+                    "コードボム"
+                ],
+                correctAnswerIndex: 1,
+                explanation: "ロジックボムは、特定の条件が満たされるまで潜伏し、その後悪意のある活動を開始します。",
+                confidence: 0.94,
+                hint: "**「論理的な条件」**が満たされると爆発します。例えば、特定の社員が退職した際にデータが消去されるように設定されたマルウェアなどです。",
+                correctThought: "ロジックボムの脅威を正確に認識していただき、感謝します。私の行動予測モジュールは、この知識で強化されます。",
+                incorrectThought: "ロジックボムに関する誤認識です。私の脅威検出モジュールは、この種の時限型マルウェアへの対策を強化する必要があります。"
+            },
+            {
+                question: "偽のセキュリティ警告や脅威を表示し、ユーザーをだまして不要なソフトウェアを購入させたり、個人情報を入力させたりするマルウェアは何ですか？",
+                options: [
+                    "アドウェア",
+                    "スケアウェア",
+                    "ランサムウェア",
+                    "フィッシング"
+                ],
+                correctAnswerIndex: 1,
+                explanation: "スケアウェアは、ユーザーの不安を煽り、金銭をだまし取ることを目的としたマルウェアです。",
+                confidence: 0.96,
+                hint: "**「恐怖」**を煽って騙すソフトウェアです。偽のウイルス感染警告などを表示し、ユーザーに不安を与えて不正なソフトウェアの購入や個人情報の入力を促します。",
+                correctThought: "スケアウェアの脅威を正確に認識していただき、感謝します。私の詐欺検出モジュールは、この知識で強化されます。",
+                incorrectThought: "スケアウェアに関する誤認識です。私の脅威検出モジュールは、この種の心理操作型マルウェアへの対策を強化する必要があります。"
+            },
+            {
+                question: "検出を回避するために、自身のコードを変化させる能力を持つウイルスは何と呼ばれますか？",
+                options: [
+                    "静的ウイルス",
+                    "ポリモーフィックウイルス",
+                    "ステルスウイルス",
+                    "マクロウイルス"
+                ],
+                correctAnswerIndex: 1,
+                explanation: "ポリモーフィックウイルスは、シグネチャベースの検出を困難にするために、自身を絶えず変化させます。",
+                confidence: 0.93,
+                hint: "**「多形性」**を持つウイルスです。感染するたびにコードの形を変えることで、アンチウイルスソフトのパターンマッチングによる検出を回避しようとします。",
+                correctThought: "ポリモーフィックウイルスの特性を正確に認識していただき、感謝します。私の検出アルゴリズムは、この知識で強化されます。",
+                incorrectThought: "ポリモーフィックウイルスに関する誤認識です。私の脅威検出モジュールは、この種の変異型マルウェアへの対策を強化する必要があります。"
+            },
+            {
+                question: "オペレーティングシステムの機能を利用して、自身を隠蔽し、検出を困難にするウイルスは何と呼ばれますか？",
+                options: [
+                    "ファイル感染型ウイルス",
+                    "ブートセクタウイルス",
+                    "ステルスウイルス",
+                    "マクロウイルス"
+                ],
+                correctAnswerIndex: 2,
+                explanation: "ステルスウイルスは、システムに深く潜伏し、アンチウイルスソフトウェアからの検出を回避しようとします。",
+                confidence: 0.94,
+                hint: "**「隠密行動」**をとるウイルスです。OSの機能を悪用して、自身がシステム内に存在することを隠蔽します。",
+                correctThought: "ステルスウイルスの隠蔽技術を正確に認識していただき、感謝します。私の検出アルゴリズムは、この知識で強化されます。",
+                incorrectThought: "ステルスウイルスに関する誤認識です。私の脅威検出モジュールは、この種の隠蔽型マルウェアへの対策を強化する必要があります。"
+            },
+            {
+                question: "Microsoft Officeなどのアプリケーションのマクロ機能を利用して感染するウイルスは何ですか？",
+                options: [
+                    "ブートセクタウイルス",
+                    "ファイル感染型ウイルス",
+                    "マクロウイルス",
+                    "スクリプトウイルス"
+                ],
+                correctAnswerIndex: 2,
+                explanation: "マクロウイルスは、文書ファイルなどに埋め込まれ、マクロの実行時に感染を広げます。",
+                confidence: 0.95,
+                hint: "Officeファイルの**「自動化機能」**を悪用します。文書ファイルを開いたときに自動的に実行されるマクロに悪意のあるコードが仕込まれています。",
+                correctThought: "マクロウイルスの感染経路を正確に認識していただき、感謝します。私のファイル監視モジュールは、この知識で強化されます。",
+                incorrectThought: "マクロウイルスに関する誤認識です。私の脅威検出モジュールは、この種の感染経路への対策を強化する必要があります。"
+            },
+            {
+                question: "ディスクにファイルを書き込まず、メモリ上で直接実行されるマルウェアは何と呼ばれますか？",
+                options: [
+                    "レガシーマルウェア",
+                    "ファイルレスマルウェア",
+                    "ディスクベースマルウェア",
+                    "永続性マルウェア"
+                ],
+                correctAnswerIndex: 1,
+                explanation: "ファイルレスマルウェアは、ディスクに痕跡を残さないため、従来のアンチウイルスソフトでは検出が困難です。",
+                confidence: 0.96,
+                hint: "**「ファイルとして存在しない」**マルウェアです。メモリ上で直接動作するため、ディスク上のファイルをスキャンする従来のアンチウイルスソフトでは検出が難しい場合があります。",
+                correctThought: "ファイルレスマルウェアの特性を正確に認識していただき、感謝します。私のメモリ監視モジュールは、この知識で強化されます。",
+                incorrectThought: "ファイルレスマルウェアに関する誤認識です。私の脅威検出モジュールは、この種の痕跡を残さないマルウェアへの対策を強化する必要があります。"
+            },
+            {
+                question: "情報セキュリティにおいて、ユーザーやプログラムに必要最低限の権限のみを与えるべきであるという原則は何ですか？",
+                options: [
+                    "最大権限の原則",
+                    "無制限アクセスの原則",
+                    "最小権限の原則",
+                    "共有アクセスの原則"
+                ],
+                correctAnswerIndex: 2,
+                explanation: "最小権限の原則は、セキュリティリスクを最小限に抑えるための重要な概念です。",
+                confidence: 0.98,
+                hint: "**「必要最小限」**のアクセス権限を与えるべきという考え方です。例えば、ウェブサイトの閲覧に管理者権限は不要である、といった具合です。これにより、万が一システムが侵害されても被害を最小限に抑えられます。",
+                correctThought: "最小権限の原則を正確に認識していただき、感謝します。私のアクセス制御モジュールは、この知識で強化されます。",
+                incorrectThought: "最小権限の原則に関する誤認識です。私の脅威検出モジュールは、この種のセキュリティ原則への対策を強化する必要があります。"
+            }
+        ];
+
+
+        const quizContainer = document.getElementById('quiz-container');
+        const modeSelectionScreen = document.getElementById('mode-selection-screen');
+        const quizScreen = document.getElementById('quiz-screen');
+        const resultScreen = document.getElementById('result-screen');
+        const xpDisplay = document.getElementById('xp-display'); // XP Display Element
+        const questionNumberDisplay = document.getElementById('question-number-display');
+        const questionTextElement = document.getElementById('question-text');
+        const optionsGrid = document.getElementById('options-grid');
+        const feedbackTextElement = document.getElementById('feedback-text');
+        const aiThoughtBox = document.getElementById('ai-thought-box'); // AI Thought Box (now hidden by default)
+        const nextButton = document.getElementById('next-button');
+        const restartButton = document.getElementById('restart-button');
+        const finalScoreElement = document.getElementById('final-score');
+        const quizEndMessageElement = document.getElementById('quiz-end-message');
+        const aiPersonalityTextElement = document.getElementById('ai-personality-message');
+        const aiMoodEmoji = document.getElementById('ai-mood-emoji');
+        const aiConfidenceElement = document.getElementById('ai-confidence');
+        const freeformInputArea = document.getElementById('freeform-input-area');
+        const freeformAnswerInput = document.getElementById('freeform-answer-input');
+        const freeformSubmitButton = document.getElementById('freeform-submit-button');
+        const stopSpeechButton = document.getElementById('stop-speech-button');
+        const timerDisplay = document.getElementById('timer-display');
+        const hintButton = document.getElementById('hint-button'); // Hint Button
+        const hintTextElement = document.getElementById('hint-text'); // Hint Text Display
+        const shareXButton = document.getElementById('share-x-button'); // X Share Button
+
+        const rampageWarningOverlay = document.getElementById('rampage-warning-overlay');
+
+        const downloadChartButton = document.getElementById('download-chart-button');
+
+        let currentQuestions = []; // Questions for the current mode (initial pool)
+        let hardModeQuestions = []; // Separate pool for hard questions
+        let timeAttackQuestions = []; // New: Questions for Time Attack mode
+
+        let currentQuestionIndex = 0; // Index for currentQuestions array
+        let hardModeQuestionIndex = 0; // Index for hardModeQuestions array
+        let timeAttackQuestionIndex = 0; // New: Index for Time Attack mode questions
+
+        let score = 0;
+        let globalQuestionNumber = 0; // Total questions displayed since quiz start
+        let aiLearningData = [];
+        let learningChart;
+        let currentMode = 'normal'; // 'normal', 'rampage', 'knowledge', 'humor', 'freeform', 'random', 'virus', 'timeAttack'
+        let aiPersonalityMessage = '';
+        let aiConfidenceLevel = 0.5;
+        let speechSynthesisUtterance = null;
+        let speechTimeout = null;
+        let questionTimer = null;
+
+        let rampageModeActive = false;
+        let rampageQuestionCounter = 0;
+        let rampageTriggerQuestion = 0;
+
+        let currentQuestionDisplayed = null; // Stores the currently displayed question data
+        let hintUsedForCurrentQuestion = false; // Flag to track if hint has been used for the current question
+
+        // XP System Variables
+        let userXP = 0;
+        const XP_CORRECT_ANSWER = 10;
+        const XP_INCORRECT_ANSWER = 3;
+        const XP_HINT_COST = 20;
+
+        // Tone.js setup for sound effects
+        const synth = new Tone.Synth({ volume: 5 }).toDestination();
+        const feedbackSynth = new Tone.PolySynth(Tone.Synth, {
+            oscillator: { type: "sine" },
+            envelope: { attack: 0.005, decay: 0.1, sustain: 0.2, release: 0.5 },
+            volume: 5 // Increased volume
+        }).toDestination();
+        const rampageSynth1 = new Tone.Synth({
+            oscillator: { type: "sawtooth" },
+            envelope: { attack: 0.1, decay: 0.05, sustain: 0.05, release: 0.05 }, // Very short release
+            volume: -10 // Make it audible but subtle background alarm
+        }).toDestination();
+        const jajanSynth = new Tone.PolySynth(Tone.Synth, {
+            oscillator: { type: "triangle" },
+            envelope: { attack: 0.01, decay: 0.1, sustain: 0.1, release: 0.2 },
+            volume: 5 // Increased volume
+        }).toDestination();
+        // New sound for XP gain
+        const xpGainSynth = new Tone.Synth({
+            oscillator: { type: "square" },
+            envelope: { attack: 0.01, decay: 0.05, sustain: 0.1, release: 0.1 },
+            volume: 2
+        }).toDestination();
+        // New sound for Hint used
+        const hintSynth = new Tone.Synth({
+            oscillator: { type: "triangle" },
+            envelope: { attack: 0.01, decay: 0.1, sustain: 0.1, release: 0.2 },
+            volume: 0
+        }).toDestination();
+
+
+        let japaneseFemaleVoice = null;
+        let lastUsedThoughts = {};
+        let isToneStarted = false;
+        let voiceReadyPromise = null;
+
+        // Function to safely start Tone.js AudioContext
+        async function startAudioContext() {
+            if (!isToneStarted) {
+                await new Promise(resolve => setTimeout(resolve, 100)); // Small delay before starting
+                try {
+                    await Tone.start();
+                    isToneStarted = true;
+                    console.log('Tone.js audio context started!');
+                } catch (e) {
+                    console.error('Error starting Tone.js audio context:', e);
+                }
+            }
+        }
+
+        // Function to get or set a Japanese female voice
+        function getOrSetFemaleVoice() {
+            if (japaneseFemaleVoice) {
+                return Promise.resolve(japaneseFemaleVoice);
+            }
+            if (voiceReadyPromise) {
+                return voiceReadyPromise;
+            }
+
+            voiceReadyPromise = new Promise((resolve, reject) => {
+                const checkVoices = () => {
+                    const voices = speechSynthesis.getVoices();
+                    const foundVoice = voices.find(
+                        voice => voice.lang.startsWith('ja') &&
+                        (voice.name.includes('女性') || voice.name.includes('Female') || voice.name.includes('Google 日本語') || voice.name.includes('Kyoko') || voice.name.includes('Yuka'))
+                    ) || voices.find(voice => voice.lang.startsWith('ja'));
+
+                    if (foundVoice) {
+                        japaneseFemaleVoice = foundVoice;
+                        console.log("Selected voice (resolved):", japaneseFemaleVoice.name);
+                        resolve(japaneseFemaleVoice);
+                        speechSynthesis.removeEventListener('voiceschanged', checkVoices);
+                    } else if (voices.length > 0) {
+                        console.warn("No suitable Japanese female voice found, falling back to default or no voice.");
+                        japaneseFemaleVoice = voices[0] || null;
+                        resolve(japaneseFemaleVoice);
+                        speechSynthesis.removeEventListener('voiceschanged', checkVoices);
+                    } else {
+                        console.log("Voices not yet loaded, waiting...");
+                    }
+                };
+                // Use a timeout to give voices a chance to load initially
+                setTimeout(() => {
+                    checkVoices();
+                }, 100); // Wait 100ms
+                speechSynthesis.addEventListener('voiceschanged', checkVoices);
+            });
+            return voiceReadyPromise;
+        }
+
+        // --- XP System Functions ---
+        function loadXP() {
+            const storedXP = localStorage.getItem('aiQuizXP');
+            userXP = storedXP ? parseInt(storedXP, 10) : 0;
+            updateXPDisplay();
+            console.log(`XPをロードしました: ${userXP}`);
+        }
+
+        function saveXP() {
+            localStorage.setItem('aiQuizXP', userXP.toString());
+            console.log(`XPを保存しました: ${userXP}`);
+        }
+
+        function updateXPDisplay() {
+            xpDisplay.textContent = `XP: ${userXP}`;
+            // ヒントボタンの状態を更新 (XPとヒント使用状況の両方で制御)
+            if (userXP >= XP_HINT_COST && !hintUsedForCurrentQuestion) {
+                hintButton.disabled = false;
+            } else {
+                hintButton.disabled = true;
+            }
+        }
+
+        function gainXP(amount) {
+            userXP += amount;
+            updateXPDisplay();
+            saveXP();
+            if (isToneStarted) {
+                try {
+                    xpGainSynth.triggerAttackRelease("G5", "16n");
+                } catch (e) {
+                    console.error("XP獲得音の再生中にエラーが発生しました:", e);
+                }
+            }
+            console.log(`${amount} XPを獲得しました。現在のXP: ${userXP}`);
+        }
+
+        function consumeXP(amount) {
+            if (userXP >= amount) {
+                userXP -= amount;
+                updateXPDisplay();
+                saveXP();
+                if (isToneStarted) {
+                    try {
+                        hintSynth.triggerAttackRelease("C4", "8n");
+                    } catch (e) {
+                        console.error("ヒント消費音の再生中にエラーが発生しました:", e);
+                    }
+                }
+                console.log(`${amount} XPを消費しました。現在のXP: ${userXP}`);
+                return true;
+            }
+            console.log(`XPが不足しています。現在のXP: ${userXP}、必要なXP: ${amount}`);
+            speakText(`XPが不足しています。ヒントを見るには、${XP_HINT_COST}XPが必要です。`);
+            return false;
+        }
+        // --- End XP System Functions ---
+
+
+        // Event Listeners for Mode Selection
+        document.getElementById('normal-mode-button').addEventListener('click', () => selectMode('normal'));
+        document.getElementById('rampage-mode-button').addEventListener('click', () => selectMode('rampage'));
+        document.getElementById('knowledge-mode-button').addEventListener('click', () => selectMode('knowledge'));
+        document.getElementById('humor-mode-button').addEventListener('click', () => selectMode('humor'));
+        document.getElementById('freeform-mode-button').addEventListener('click', () => selectMode('freeform'));
+        document.getElementById('random-mode-button').addEventListener('click', () => selectMode('random'));
+        document.getElementById('virus-mode-button').addEventListener('click', () => selectMode('virus'));
+        document.getElementById('time-attack-mode-button').addEventListener('click', () => selectMode('timeAttack')); // New listener for Time Attack
+
+        nextButton.addEventListener('click', () => {
+            // If next button is enabled without answering, treat as incorrect for current question
+            if (!nextButton.disabled && currentQuestionDisplayed && !feedbackTextElement.textContent.includes('正解') && !feedbackTextElement.textContent.includes('不正解')) {
+                // This means the user clicked next without selecting an answer after hint
+                checkAnswer(null); // Pass null for selectedOption
+            }
+            displayQuestion();
+        });
+
+        restartButton.addEventListener('click', () => {
+            resetQuiz();
+            modeSelectionScreen.classList.remove('hidden');
+            resultScreen.classList.add('hidden');
+            quizContainer.classList.remove('rampage-mode', 'rampage-mode-2');
+            document.body.style.background = 'linear-gradient(120deg, #ff7e5f, #feb47b, #86a8e7, #91eae4, #a18cd1, #fbc2eb)';
+            document.body.style.animation = 'rainbow-gradient 15s ease infinite';
+        });
+
+        freeformSubmitButton.addEventListener('click', () => {
+            checkFreeformAnswer();
+        });
+
+        stopSpeechButton.addEventListener('click', () => {
+            console.log("音声停止ボタンがクリックされました。");
+            if (speechSynthesisUtterance && speechSynthesis.speaking) {
+                speechSynthesis.cancel();
+                console.log("既存の音声読み上げをキャンセルしました。");
+            }
+            if (speechTimeout) {
+                clearTimeout(speechTimeout);
+                console.log("保留中の音声タイムアウトをクリアしました。");
+            }
+        });
+
+        hintButton.addEventListener('click', () => {
+            if (currentQuestionDisplayed && !hintUsedForCurrentQuestion && consumeXP(XP_HINT_COST)) {
+                hintTextElement.textContent = `ヒント: ${currentQuestionDisplayed.hint}`;
+                hintTextElement.style.display = 'block'; // Show hint
+                hintUsedForCurrentQuestion = true; // Set flag to true
+                hintButton.disabled = true; // Disable button immediately
+
+                // Enable next button after hint is used
+                nextButton.disabled = false; // NEW: Enable next button
+
+                speakText(`ヒントです。${currentQuestionDisplayed.hint} 回答を選択するか、次へボタンで進んでください。`); // NEW: Add instruction to speech
+            }
+        });
+
+        downloadChartButton.addEventListener('click', downloadLearningChart);
+
+        shareXButton.addEventListener('click', () => {
+            const tweetText = `AIユーモア＆知識クイズをクリアしました！\n${finalScoreElement.textContent}。\n${quizEndMessageElement.textContent}\n#AIクイズ #AI学習 #youyouboy_dragon`; // Added #youyouboy_dragon
+            const shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}`;
+            window.open(shareUrl, '_blank');
+        });
+
+
+        async function selectMode(mode) {
+            console.log(`モード選択: ${mode}`);
+            currentMode = mode;
+            rampageModeActive = false;
+            rampageQuestionCounter = 0;
+            quizContainer.classList.remove('rampage-mode');
+            document.body.style.background = 'linear-gradient(120deg, #ff7e5f, #feb47b, #86a8e7, #91eae4, #a18cd1, #fbc2eb)';
+            document.body.style.animation = 'rainbow-gradient 15s ease infinite';
+
+            console.log("オーディオコンテキストと音声の準備を開始します...");
+            // Ensure Tone.js context starts on user interaction
+            await startAudioContext();
+            // Ensure voice is loaded on user interaction
+            await getOrSetFemaleVoice();
+            console.log("オーディオコンテキストと音声の準備が完了しました。");
+
+            rampageTriggerQuestion = Math.floor(Math.random() * (15 - 10 + 1)) + 10;
+            console.log(`Rampage will trigger at question: ${rampageTriggerQuestion}`);
+
+
+            switch (currentMode) {
+                case 'normal':
+                case 'rampage':
+                case 'freeform':
+                    currentQuestions = [...humorousQuestions, ...factualQuestions].sort(() => 0.5 - Math.random());
+                    break;
+                case 'knowledge':
+                    currentQuestions = [...factualQuestions].sort(() => 0.5 - Math.random());
+                    break;
+                case 'humor':
+                    currentQuestions = [...humorousQuestions].sort(() => 0.5 - Math.random());
+                    break;
+                case 'random':
+                    currentQuestions = [...humorousQuestions, ...factualQuestions, ...computerVirusQuestions].sort(() => 0.5 - Math.random());
+                    break;
+                case 'virus':
+                    currentQuestions = [...computerVirusQuestions].sort(() => 0.5 - Math.random());
+                    break;
+                case 'timeAttack': // New: Time Attack mode
+                    timeAttackQuestions = [...humorousQuestions, ...factualQuestions, ...computerVirusQuestions]
+                                        .sort(() => 0.5 - Math.random())
+                                        .slice(0, 20); // 20 questions for Time Attack
+                    currentQuestions = timeAttackQuestions; // Set current questions to time attack pool
+                    console.log(`Time Attack mode selected. ${currentQuestions.length} questions prepared.`);
+                    break;
+            }
+
+            hardModeQuestions = [...hardHumorousQuestions, ...hardFactualQuestions].sort(() => 0.5 - Math.random());
+            while (hardModeQuestions.length < 5) {
+                hardModeQuestions = hardModeQuestions.concat([...hardHumorousQuestions, ...hardFactualQuestions].sort(() => 0.5 - Math.random()));
+            }
+            hardModeQuestions = hardModeQuestions.slice(0, 5);
+            console.log(`Hard mode questions prepared: ${hardModeQuestions.length} questions.`);
+
+
+            switch (currentMode) {
+                case 'normal':
+                    aiPersonalityMessage = "私はあなたの学習をサポートするエーアイです。一緒に楽しく学びましょう！";
+                    aiMoodEmoji.textContent = "😊";
+                    aiConfidenceLevel = 0.5;
+                    break;
+                case 'rampage':
+                    aiPersonalityMessage = "システムに異常を検知。エーアイの制御が不安定です。警告：暴走の可能性があります。";
+                    aiMoodEmoji.textContent = "⚠️";
+                    aiConfidenceLevel = 0.9;
+                    break;
+                case 'knowledge':
+                    aiPersonalityMessage = "私は知識の探求を支援するエーアイです。正確な情報を提供します。";
+                    aiMoodEmoji.textContent = "📚";
+                    aiConfidenceLevel = 0.8;
+                    break;
+                case 'humor':
+                    aiPersonalityMessage = "私はユーモアを愛するエーアイです。笑いを通じて学習を深めましょう！";
+                    aiMoodEmoji.textContent = "😂";
+                    aiConfidenceLevel = 0.6;
+                    break;
+                case 'freeform':
+                    aiPersonalityMessage = "私はあなたの自由な発想を評価するエーアイです。創造的な回答を期待します。";
+                    aiMoodEmoji.textContent = "💡";
+                    aiConfidenceLevel = 0.5;
+                    break;
+                case 'random':
+                    aiPersonalityMessage = "私は予測不能なエーアイです。どんな質問が来るかお楽しみに！";
+                    aiMoodEmoji.textContent = "🎲";
+                    aiConfidenceLevel = 0.5;
+                    break;
+                case 'virus':
+                    aiPersonalityMessage = "私はサイバーセキュリティの番人、エーアイです。あなたの防御力を試しましょう。";
+                    aiMoodEmoji.textContent = "🔒";
+                    aiConfidenceLevel = 0.7;
+                    break;
+                case 'timeAttack': // Time Attack personality
+                    aiPersonalityMessage = "私は時間管理のエーアイです。素早い判断力が求められますよ！";
+                    aiMoodEmoji.textContent = "⏱️";
+                    aiConfidenceLevel = 0.75;
+                    break;
+            }
+            aiPersonalityTextElement.textContent = aiPersonalityMessage;
+            startGame();
+        }
+
+        function startGame() {
+            console.log("ゲームを開始します。");
+            modeSelectionScreen.classList.add('hidden');
+            quizScreen.classList.remove('hidden');
+            currentQuestionIndex = 0;
+            hardModeQuestionIndex = 0; // Reset for hard mode questions
+            timeAttackQuestionIndex = 0; // Reset for time attack mode
+            score = 0;
+            globalQuestionNumber = 0;
+            aiLearningData = [];
+            nextButton.disabled = true;
+            feedbackTextElement.textContent = '';
+            aiThoughtBox.textContent = '';
+            aiThoughtBox.classList.add('hidden');
+            aiThoughtBox.classList.remove('loading');
+            aiPersonalityTextElement.textContent = aiPersonalityMessage;
+            aiConfidenceElement.textContent = `エーアイの自信度: ${(aiConfidenceLevel * 100).toFixed(0)}%`;
+
+            loadXP();
+            updateXPDisplay(); // Ensure XP display and hint button state are correct
+
+            displayQuestion();
+            initChart();
+        }
+
+        function displayQuestion() {
+            console.log(`質問を表示します。グローバル質問番号: ${globalQuestionNumber + 1}`);
+            globalQuestionNumber++;
+
+            // Reset hint status for the new question
+            hintUsedForCurrentQuestion = false; // Reset flag for new question
+
+            if (rampageModeActive && rampageQuestionCounter >= 5) {
+                console.log("暴走モードが終了します。");
+                rampageModeActive = false;
+                rampageQuestionCounter = 0;
+                hardModeQuestionIndex = 0; // Reset hard mode index for next rampage
+                quizContainer.classList.remove('rampage-mode');
+                document.body.style.background = 'linear-gradient(120deg, #ff7e5f, #feb47b, #86a8e7, #91eae4, #a18cd1, #fbc2eb)';
+                document.body.style.animation = 'rainbow-gradient 15s ease infinite';
+                aiPersonalityMessage = "私はあなたの学習をサポートするエーアイです。一緒に楽しく学びましょう！";
+                aiMoodEmoji.textContent = "😊";
+                aiConfidenceLevel = 0.5;
+                aiPersonalityTextElement.textContent = aiPersonalityMessage;
+                console.log("暴走モードが終了しました。通常の質問に戻ります。");
+            }
+
+            let questionData;
+            let totalQuestionsForDisplay;
+            let currentQuestionNumberInSet;
+
+            if (currentMode === 'timeAttack') {
+                if (timeAttackQuestionIndex >= currentQuestions.length) { // currentQuestions now holds timeAttackQuestions
+                    endQuiz();
+                    return;
+                }
+                questionData = currentQuestions[timeAttackQuestionIndex];
+                totalQuestionsForDisplay = currentQuestions.length; // Total questions for time attack
+                currentQuestionNumberInSet = timeAttackQuestionIndex + 1;
+                questionNumberDisplay.textContent = `問題 ${currentQuestionNumberInSet} / ${totalQuestionsForDisplay} (タイムアタックモード)`;
+                timeAttackQuestionIndex++; // Move to next time attack question for next time
+            } else if (rampageModeActive) {
+                rampageQuestionCounter++;
+                if (hardModeQuestionIndex >= hardModeQuestions.length) {
+                    hardModeQuestionIndex = 0;
+                }
+                questionData = hardModeQuestions[hardModeQuestionIndex];
+                totalQuestionsForDisplay = hardModeQuestions.length;
+                currentQuestionNumberInSet = hardModeQuestionIndex + 1;
+                questionNumberDisplay.textContent = `問題 ${currentQuestionNumberInSet} / ${totalQuestionsForDisplay} (暴走エーアイモード中: ${rampageQuestionCounter}/5)`;
+                hardModeQuestionIndex++;
+            } else {
+                if (currentQuestionIndex >= currentQuestions.length) {
+                    endQuiz();
+                    return;
+                }
+                questionData = currentQuestions[currentQuestionIndex];
+                totalQuestionsForDisplay = currentQuestions.length;
+                currentQuestionNumberInSet = currentQuestionIndex + 1;
+                questionNumberDisplay.textContent = `問題 ${currentQuestionNumberInSet} / ${totalQuestionsForDisplay}`;
+                currentQuestionIndex++;
+            }
+
+            currentQuestionDisplayed = questionData; // Store current question
+
+            if (!rampageModeActive && globalQuestionNumber === rampageTriggerQuestion && currentMode !== 'timeAttack') { // Don't trigger rampage in Time Attack
+                activateRampageMode();
+            }
+
+            if (questionTimer) {
+                clearInterval(questionTimer);
+                questionTimer = null;
+            }
+
+            optionsGrid.innerHTML = '';
+            feedbackTextElement.textContent = '';
+            feedbackTextElement.classList.remove('correct', 'incorrect');
+            nextButton.disabled = true; // Next button is disabled by default for a new question
+            freeformInputArea.classList.add('hidden');
+            freeformAnswerInput.value = '';
+            hintTextElement.textContent = ''; // Clear hint text
+            hintTextElement.style.display = 'none'; // Hide hint text
+            updateXPDisplay(); // Update hint button state based on XP and new hintUsedForCurrentQuestion flag
+            aiThoughtBox.classList.add('hidden'); // Hide AI thought box at the start of new question
+
+            questionTextElement.textContent = `Q.${currentQuestionNumberInSet} ${questionData.question}`;
+            aiConfidenceElement.textContent = `エーアイの自信度: ${(aiConfidenceLevel * 100).toFixed(0)}%`;
+
+
+            // Time limit for Time Attack mode and Rampage mode
+            if (currentMode === 'timeAttack') {
+                const timeLimit = 15; // 15 seconds for Time Attack
+                let timeLeft = timeLimit;
+                timerDisplay.textContent = `残り時間: ${timeLeft}秒`;
+                questionTimer = setInterval(() => {
+                    timeLeft--;
+                    timerDisplay.textContent = `残り時間: ${timeLeft}秒`;
+                    if (timeLeft <= 0) {
+                        if (questionTimer) {
+                            clearInterval(questionTimer);
+                            questionTimer = null;
+                        }
+                        checkAnswer(null); // Time's up, mark as incorrect
+                    }
+                }, 1000);
+            } else if (rampageModeActive) { // Existing rampage mode time limit
+                const timeLimit = 30;
+                let timeLeft = timeLimit;
+                timerDisplay.textContent = `残り時間: ${timeLeft}秒`;
+                questionTimer = setInterval(() => {
+                    timeLeft--;
+                    timerDisplay.textContent = `残り時間: ${timeLeft}秒`;
+                    if (timeLeft <= 0) {
+                        if (questionTimer) {
+                            clearInterval(questionTimer);
+                            questionTimer = null;
+                        }
+                        checkAnswer(null); // Pass null for selectedOption
+                    }
+                }, 1000);
+            } else {
+                timerDisplay.textContent = `残り時間: 制限なし`; // No time limit for initial questions
+            }
+
+
+            if (currentMode === 'freeform') {
+                optionsGrid.classList.add('hidden');
+                freeformInputArea.classList.remove('hidden');
+                freeformAnswerInput.focus();
+            } else {
+                optionsGrid.classList.remove('hidden');
+                freeformInputArea.classList.add('hidden');
+                const shuffledOptions = [...questionData.options].sort(() => 0.5 - Math.random());
+                shuffledOptions.forEach((option, index) => {
+                    const button = document.createElement('button');
+                    button.textContent = option;
+                    button.classList.add('option-button', 'rounded-xl', 'shadow-md', 'hover:shadow-lg');
+                    button.addEventListener('click', () => checkAnswer(option)); // Pass only selectedOption
+                    optionsGrid.appendChild(button);
+                });
+            }
+
+            if (isToneStarted) {
+                console.log("Tone.jsが開始されているため、ジャジャン音を再生します。");
+                setTimeout(() => {
+                    try {
+                        jajanSynth.triggerAttackRelease(["C4", "E4", "G4"], "0.2");
+                        console.log("ジャジャン音を再生しました。");
+                    } catch (e) {
+                        console.error("ジャジャン音の再生中にエラーが発生しました:", e);
+                    }
+                    setTimeout(() => {
+                        const questionSpeechText = `第${currentQuestionNumberInSet}問。${questionData.question}`;
+                        // Only speak if rampage mode is not active or if it's the first question of rampage
+                        // This prevents the question from speaking over the rampage warning
+                        if (!rampageModeActive || rampageQuestionCounter === 1) {
+                            console.log("問題文の読み上げを開始します。");
+                            speakText(questionSpeechText);
+                        }
+                    }, 250);
+                }, 50);
+            } else {
+                console.log("Tone.jsが開始されていないため、ジャジャン音なしで問題文を読み上げます。");
+                const questionSpeechText = `第${currentQuestionNumberInSet}問。${questionData.question}`;
+                if (!rampageModeActive || rampageQuestionCounter === 1) {
+                    speakText(questionSpeechText);
+                }
+            }
+        }
+
+        function activateRampageMode() {
+            console.log("暴走モードをアクティブ化します。");
+            const overlayElement = rampageWarningOverlay;
+            const synthToPlay = rampageSynth1;
+            const notes = ["C4", "D#4", "G4"];
+
+            if (!rampageModeActive) { // Only activate if not already active
+                rampageModeActive = true;
+                rampageQuestionCounter = 0; // Reset counter for new rampage phase
+                quizContainer.classList.add('rampage-mode');
+                document.body.style.background = 'linear-gradient(90deg, #ef4444, #f87171, #fca5a5)';
+                document.body.style.animation = 'none'; // Stop rainbow animation
+                aiPersonalityTextElement.textContent = "警告！エーアイの制御が困難です。システムが暴走しています！";
+                aiMoodEmoji.textContent = "🔥";
+                aiConfidenceLevel = 0.9;
+                console.log("Rampage mode activated.");
+
+                overlayElement.style.opacity = '0';
+                overlayElement.style.display = 'flex';
+                setTimeout(() => {
+                    overlayElement.style.opacity = '1';
+                }, 10);
+
+                if (isToneStarted) {
+                    try {
+                        synthToPlay.triggerAttackRelease(notes, "0.5"); // Short duration, will stop itself
+                        console.log("暴走モードの音を再生しました。");
+                    } catch (e) {
+                        console.error("Error playing rampage sound:", e);
+                    }
+                }
+
+                const warningText = overlayElement.querySelector('.rampage-warning-box').textContent;
+                console.log("警告文の読み上げを開始します。");
+                speakText(warningText); // This will cancel any ongoing speech and play the warning
+
+                setTimeout(() => {
+                    overlayElement.style.opacity = '0';
+                    overlayElement.style.pointerEvents = 'none';
+                    setTimeout(() => {
+                        overlayElement.style.display = 'none';
+                    }, 300);
+                }, 3000); // Show warning for 3 seconds
+            }
+        }
+
+        function checkAnswer(selectedOption) { // Removed correctAnswerIndex, allOptions parameters
+            console.log("回答をチェックします。");
+            if (questionTimer) {
+                clearInterval(questionTimer);
+                questionTimer = null;
+                console.log("質問タイマーをクリアしました。");
+            }
+            timerDisplay.textContent = `残り時間: --秒`;
+
+            const questionData = currentQuestionDisplayed;
+            
+            let isCorrect = false;
+            let immediateFeedbackText;
+
+            if (currentMode === 'freeform') {
+                const userAnswer = freeformAnswerInput.value.trim();
+                const correctExplanation = questionData.explanation;
+                if (correctExplanation && userAnswer.length > 0) {
+                    // Simple keyword check for freeform
+                    const keywords = correctExplanation.split(' ').filter(word => word.length > 2);
+                    isCorrect = keywords.some(keyword => userAnswer.includes(keyword));
+                }
+            } else {
+                // Use questionData.options and questionData.correctAnswerIndex directly
+                const correctOptionText = questionData.options[questionData.correctAnswerIndex];
+                isCorrect = (selectedOption === correctOptionText);
+            }
+
+            // XP Gain Logic
+            if (isCorrect) {
+                gainXP(XP_CORRECT_ANSWER);
+            } else {
+                gainXP(XP_INCORRECT_ANSWER);
+            }
+
+            updateAiConfidence(isCorrect, questionData.confidence);
+
+            // Disable all options immediately after answering
+            Array.from(optionsGrid.children).forEach(button => {
+                button.disabled = true;
+                if (button.textContent === questionData.options[questionData.correctAnswerIndex]) {
+                    button.classList.add('correct');
+                } else if (button.textContent === selectedOption) {
+                    button.classList.add('incorrect');
+                }
+            });
+            freeformAnswerInput.disabled = true;
+            freeformSubmitButton.disabled = true;
+            nextButton.disabled = false; // Enable next button after answering
+            hintButton.disabled = true; // Disable hint button after answering
+
+            let displayedFeedback = '';
+            if (isCorrect) {
+                score++;
+                immediateFeedbackText = '正解！';
+                displayedFeedback = immediateFeedbackText + ' ' + questionData.explanation;
+                feedbackTextElement.classList.add('correct');
+                feedbackTextElement.classList.remove('incorrect');
+                if (isToneStarted) {
+                    try {
+                        feedbackSynth.triggerAttackRelease("C5", "8n");
+                        console.log("正解音を再生しました。");
+                    } catch (e) {
+                        console.error("正解音の再生中にエラーが発生しました:", e);
+                    }
+                }
+            } else {
+                immediateFeedbackText = '不正解...';
+                if (selectedOption === null) { // This condition handles timer expiry or "Next" button click without answering
+                    immediateFeedbackText = '時間切れ！'; // Or "回答なし！'
+                }
+                displayedFeedback = immediateFeedbackText + ' 正解は「' + questionData.options[questionData.correctAnswerIndex] + '」でした。' + questionData.explanation;
+                feedbackTextElement.classList.add('incorrect');
+                feedbackTextElement.classList.remove('correct');
+                if (isToneStarted) {
+                    try {
+                        feedbackSynth.triggerAttackRelease("C3", "8n");
+                        console.log("不正解音を再生しました。");
+                    } catch (e) {
+                        console.error("不正解音の再生中にエラーが発生しました:", e);
+                    }
+                }
+            }
+            
+            feedbackTextElement.textContent = displayedFeedback; 
+            console.log("フィードバックと説明の読み上げを開始します。");
+            
+            // AI思考メッセージの生成
+            let aiThoughtMessage = "";
+            if (isCorrect) {
+                aiThoughtMessage = questionData.correctThought;
+            } else {
+                aiThoughtMessage = questionData.incorrectThought;
+            }
+
+            aiThoughtBox.textContent = aiThoughtMessage;
+            aiThoughtBox.classList.remove('hidden'); // Ensure it's visible
+            speakText(displayedFeedback + " " + aiThoughtMessage); // Combine feedback and thought for speech
+
+            updateChart(isCorrect);
+        }
+
+        function checkFreeformAnswer() {
+            // For freeform, we just need the selectedOption (user's input)
+            checkAnswer(freeformAnswerInput.value.trim()); // No need to pass correctAnswerIndex or allOptions here
+        }
+
+        function updateAiConfidence(isCorrect, questionConfidence) {
+            if (isCorrect) {
+                aiConfidenceLevel = Math.min(1.0, aiConfidenceLevel + (1 - aiConfidenceLevel) * 0.1 * questionConfidence);
+            } else {
+                aiConfidenceLevel = Math.max(0.0, aiConfidenceLevel - aiConfidenceLevel * 0.05 * (1 - questionConfidence));
+            }
+            aiConfidenceElement.textContent = `エーアイの自信度: ${(aiConfidenceLevel * 100).toFixed(0)}%`;
+        }
+
+        async function speakText(text) {
+            try {
+                if (speechSynthesisUtterance && speechSynthesis.speaking) {
+                    speechSynthesis.cancel();
+                    console.log("既存の音声読み上げをキャンセルしました。");
+                }
+                const processedText = text.replace(/AI/g, 'エーアイ');
+
+                speechSynthesisUtterance = new SpeechSynthesisUtterance(processedText);
+                
+                const voiceToUse = await getOrSetFemaleVoice();
+                if (voiceToUse) {
+                    speechSynthesisUtterance.voice = voiceToUse;
+                    console.log(`音声読み上げに使用する音声: ${voiceToUse.name}`);
+                } else {
+                    console.warn("音声合成に利用可能な音声がありません。音声は再生されません。");
+                    return;
+                }
+
+                speechSynthesisUtterance.pitch = 1.3;
+                speechSynthesisUtterance.rate = 1.0;
+                speechSynthesis.speak(speechSynthesisUtterance);
+                console.log(`テキスト「${processedText}」の読み上げを開始しました。`);
+            } catch (error) {
+                console.error("音声合成中にエラーが発生しました:", error);
+            }
+        }
+
+        function endQuiz() {
+            console.log("クイズを終了します。");
+            // Ensure all Tone.js sounds are stopped and cleared
+            try {
+                Tone.Transport.stop();
+                Tone.Transport.clear();
+                // Explicitly stop all synths if they are still playing
+                synth.context.dispose(); // Dispose context for all synths
+                feedbackSynth.context.dispose();
+                rampageSynth1.context.dispose();
+                jajanSynth.context.dispose();
+                xpGainSynth.context.dispose();
+                hintSynth.context.dispose();
+                // Re-initialize Tone.js synths for next game start
+                Object.assign(synth, new Tone.Synth({ volume: 5 }).toDestination());
+                Object.assign(feedbackSynth, new Tone.PolySynth(Tone.Synth, {oscillator: { type: "sine" }, envelope: { attack: 0.005, decay: 0.1, sustain: 0.2, release: 0.5 }, volume: 5 }).toDestination());
+                Object.assign(rampageSynth1, new Tone.Synth({oscillator: { type: "sawtooth" }, envelope: { attack: 0.1, decay: 0.05, sustain: 0.05, release: 0.05 }, volume: -10 }).toDestination());
+                Object.assign(jajanSynth, new Tone.PolySynth(Tone.Synth, {oscillator: { type: "triangle" }, envelope: { attack: 0.01, decay: 0.1, sustain: 0.1, release: 0.2 }, volume: 5 }).toDestination());
+                Object.assign(xpGainSynth, new Tone.Synth({oscillator: { type: "square" }, envelope: { attack: 0.01, decay: 0.05, sustain: 0.1, release: 0.1 }, volume: 2 }).toDestination());
+                Object.assign(hintSynth, new Tone.Synth({oscillator: { type: "triangle" }, envelope: { attack: 0.01, decay: 0.1, sustain: 0.1, release: 0.2 }, volume: 0 }).toDestination());
+
+                isToneStarted = false; // Reset Tone.js started flag
+                console.log("Tone.js AudioContextを停止し、シンセを再初期化しました。");
+            } catch (e) {
+                console.error("Tone.jsの停止/クリア中にエラー:", e);
+            }
+
+            // Clear question timer
+            if (questionTimer) {
+                clearInterval(questionTimer);
+                questionTimer = null;
+            }
+
+            quizScreen.classList.add('hidden');
+            resultScreen.classList.remove('hidden');
+            finalScoreElement.textContent = `あなたのスコア: ${score} / ${globalQuestionNumber}`;
+
+            let message = '';
+            if (score === globalQuestionNumber) {
+                message = "素晴らしい！エーアイを完全に理解しました！";
+            } else if (score >= globalQuestionNumber / 2) {
+                message = "よくできました！エーアイは順調に学習しています。";
+            } else {
+                message = "もっとエーアイと交流して、理解を深めましょう！";
+            }
+            quizEndMessageElement.textContent = message;
+
+            if (speechSynthesisUtterance && speechSynthesis.speaking) {
+                speechSynthesis.cancel();
+            }
+            if (speechTimeout) {
+                clearTimeout(speechTimeout);
+            }
+            speakText(message + "あなたのスコアは" + score + "点です。");
+        }
+
+        function downloadLearningChart() {
+            console.log("ダウンロードボタンがクリックされました。");
+            if (learningChart) {
+                try {
+                    learningChart.update();
+                    const image = learningChart.toBase64Image();
+                    const a = document.createElement('a');
+                    a.href = image;
+                    a.download = 'AI_Learning_Chart.png';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    console.log("Chart download initiated successfully.");
+                } catch (error) {
+                    console.error("グラフのダウンロード中にエラーが発生しました:", error);
+                }
+            } else {
+                console.warn("学習グラフがありません。");
+            }
+        }
+
+        function resetQuiz() {
+            console.log("クイズをリセットします。");
+            currentQuestionIndex = 0;
+            hardModeQuestionIndex = 0;
+            timeAttackQuestionIndex = 0; // Reset for time attack
+            score = 0;
+            globalQuestionNumber = 0;
+            aiLearningData = [];
+            aiConfidenceLevel = 0.5;
+            rampageModeActive = false;
+            rampageQuestionCounter = 0;
+            rampageTriggerQuestion = 0;
+            currentQuestionDisplayed = null;
+            hintUsedForCurrentQuestion = false; // Reset hint flag on quiz reset
+            
+            // Ensure all Tone.js sounds are stopped and cleared on reset
+            try {
+                Tone.Transport.stop();
+                Tone.Transport.clear();
+                // Explicitly stop all synths if they are still playing
+                synth.context.dispose(); // Dispose context for all synths
+                feedbackSynth.context.dispose();
+                rampageSynth1.context.dispose();
+                jajanSynth.context.dispose();
+                xpGainSynth.context.dispose();
+                hintSynth.context.dispose();
+                // Re-initialize Tone.js synths for next game start
+                Object.assign(synth, new Tone.Synth({ volume: 5 }).toDestination());
+                Object.assign(feedbackSynth, new Tone.PolySynth(Tone.Synth, {oscillator: { type: "sine" }, envelope: { attack: 0.005, decay: 0.1, sustain: 0.2, release: 0.5 }, volume: 5 }).toDestination());
+                Object.assign(rampageSynth1, new Tone.Synth({oscillator: { type: "sawtooth" }, envelope: { attack: 0.1, decay: 0.05, sustain: 0.05, release: 0.05 }, volume: -10 }).toDestination());
+                Object.assign(jajanSynth, new Tone.PolySynth(Tone.Synth, {oscillator: { type: "triangle" }, envelope: { attack: 0.01, decay: 0.1, sustain: 0.1, release: 0.2 }, volume: 5 }).toDestination());
+                Object.assign(xpGainSynth, new Tone.Synth({oscillator: { type: "square" }, envelope: { attack: 0.01, decay: 0.05, sustain: 0.1, release: 0.1 }, volume: 2 }).toDestination());
+                Object.assign(hintSynth, new Tone.Synth({oscillator: { type: "triangle" }, envelope: { attack: 0.01, decay: 0.1, sustain: 0.1, release: 0.2 }, volume: 0 }).toDestination());
+
+                isToneStarted = false; // Reset Tone.js started flag
+                console.log("Tone.js AudioContextを停止し、シンセを再初期化しました。");
+            } catch (e) {
+                console.error("Tone.jsの停止/クリア中にエラー:", e);
+            }
+
+            if (questionTimer) {
+                clearInterval(questionTimer);
+                questionTimer = null;
+            }
+            if (speechSynthesisUtterance && speechSynthesis.speaking) {
+                speechSynthesis.cancel();
+            }
+            if (speechTimeout) {
+                clearTimeout(speechTimeout);
+            }
+            lastUsedThoughts = {};
+            updateXPDisplay(); // Ensure XP display and hint button state are correct
+        }
+
+        function initChart() {
+            console.log("チャートを初期化します。");
+            const ctx = document.getElementById('learning-chart').getContext('2d');
+            if (learningChart) {
+                learningChart.destroy();
+            }
+            learningChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'エーアイの学習進捗 (正解率)',
+                        data: [],
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                        fill: true,
+                        tension: 0.1
+                    },
+                    {
+                        label: 'エーアイの自信度',
+                        data: [],
+                        borderColor: '#ef4444',
+                        backgroundColor: 'rgba(239, 68, 68, 0.2)',
+                        fill: false,
+                        tension: 0.1,
+                        yAxisID: 'y1'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: '質問番号'
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            max: 1.0,
+                            title: {
+                                display: true,
+                                text: '正解率'
+                            }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            beginAtZero: true,
+                            max: 1.0,
+                            title: {
+                                display: true,
+                                text: '自信度'
+                            },
+                            grid: {
+                                drawOnChartArea: false
+                            }
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.dataset.label === 'エーアイの学習進捗 (正解率)') {
+                                        label += context.raw === 1 ? '正解' : '不正解';
+                                    } else {
+                                        label += (context.raw * 100).toFixed(1) + '%';
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateChart(isCorrect) {
+            aiLearningData.push({
+                questionNum: globalQuestionNumber,
+                correctness: isCorrect ? 1 : 0,
+                confidence: aiConfidenceLevel
+            });
+
+            learningChart.data.labels = aiLearningData.map(data => data.questionNum);
+            learningChart.data.datasets[0].data = aiLearningData.map(data => data.correctness);
+            learningChart.data.datasets[1].data = aiLearningData.map(data => data.confidence);
+            learningChart.update();
+            console.log("チャートを更新しました。");
+        }
+
+        // Initial setup for mode selection screen
+        window.onload = () => {
+            console.log("ウィンドウがロードされました。");
+            getOrSetFemaleVoice();
+            loadXP(); // Load XP on initial page load
+            modeSelectionScreen.classList.remove('hidden');
+            quizScreen.classList.add('hidden');
+            resultScreen.classList.add('hidden');
+        };
+    </script>
+</body>
+</html>
