@@ -1875,7 +1875,6 @@
         const shareXButton = document.getElementById('share-x-button'); // X Share Button
 
         const rampageWarningOverlay = document.getElementById('rampage-warning-overlay');
-        const rampageWarningOverlay2 = document.getElementById('rampage-warning-overlay-2');
 
         const downloadChartButton = document.getElementById('download-chart-button');
 
@@ -1899,10 +1898,8 @@
         let questionTimer = null;
 
         let rampageModeActive = false;
-        let rampageHardModeActive = false;
         let rampageQuestionCounter = 0;
         let rampageTriggerQuestion = 0;
-        let rampageSecondTriggerQuestion = 0;
 
         let currentQuestionDisplayed = null; // Stores the currently displayed question data
         let hintUsedForCurrentQuestion = false; // Flag to track if hint has been used for the current question
@@ -2133,10 +2130,8 @@
             console.log(`モード選択: ${mode}`);
             currentMode = mode;
             rampageModeActive = false;
-            rampageHardModeActive = false;
             rampageQuestionCounter = 0;
-            rampageSecondTriggerQuestion = 0;
-            quizContainer.classList.remove('rampage-mode', 'rampage-mode-2');
+            quizContainer.classList.remove('rampage-mode');
             document.body.style.background = 'linear-gradient(120deg, #ff7e5f, #feb47b, #86a8e7, #91eae4, #a18cd1, #fbc2eb)';
             document.body.style.animation = 'rainbow-gradient 15s ease infinite';
 
@@ -2148,7 +2143,6 @@
             console.log("オーディオコンテキストと音声の準備が完了しました。");
 
             rampageTriggerQuestion = Math.floor(Math.random() * (15 - 10 + 1)) + 10;
-            rampageSecondTriggerQuestion = 0;
             console.log(`Rampage will trigger at question: ${rampageTriggerQuestion}`);
 
 
@@ -2265,14 +2259,12 @@
             // Reset hint status for the new question
             hintUsedForCurrentQuestion = false; // Reset flag for new question
 
-            if (rampageHardModeActive && rampageQuestionCounter >= 5) {
+            if (rampageModeActive && rampageQuestionCounter >= 5) {
                 console.log("暴走モードが終了します。");
                 rampageModeActive = false;
-                rampageHardModeActive = false;
                 rampageQuestionCounter = 0;
                 hardModeQuestionIndex = 0; // Reset hard mode index for next rampage
-                rampageSecondTriggerQuestion = 0;
-                quizContainer.classList.remove('rampage-mode', 'rampage-mode-2');
+                quizContainer.classList.remove('rampage-mode');
                 document.body.style.background = 'linear-gradient(120deg, #ff7e5f, #feb47b, #86a8e7, #91eae4, #a18cd1, #fbc2eb)';
                 document.body.style.animation = 'rainbow-gradient 15s ease infinite';
                 aiPersonalityMessage = "私はあなたの学習をサポートするエーアイです。一緒に楽しく学びましょう！";
@@ -2280,12 +2272,6 @@
                 aiConfidenceLevel = 0.5;
                 aiPersonalityTextElement.textContent = aiPersonalityMessage;
                 console.log("暴走モードが終了しました。通常の質問に戻ります。");
-            }
-
-            if (!rampageModeActive && globalQuestionNumber === rampageTriggerQuestion && currentMode !== 'timeAttack') { // Don't trigger rampage in Time Attack
-                activateRampageMode();
-            } else if (rampageModeActive && !rampageHardModeActive && rampageSecondTriggerQuestion > 0 && globalQuestionNumber === rampageSecondTriggerQuestion) {
-                activateRampageHardMode();
             }
 
             let questionData;
@@ -2302,7 +2288,7 @@
                 currentQuestionNumberInSet = timeAttackQuestionIndex + 1;
                 questionNumberDisplay.textContent = `問題 ${currentQuestionNumberInSet} / ${totalQuestionsForDisplay} (タイムアタックモード)`;
                 timeAttackQuestionIndex++; // Move to next time attack question for next time
-            } else if (rampageHardModeActive) {
+            } else if (rampageModeActive) {
                 rampageQuestionCounter++;
                 if (hardModeQuestionIndex >= hardModeQuestions.length) {
                     hardModeQuestionIndex = 0;
@@ -2325,6 +2311,10 @@
             }
 
             currentQuestionDisplayed = questionData; // Store current question
+
+            if (!rampageModeActive && globalQuestionNumber === rampageTriggerQuestion && currentMode !== 'timeAttack') { // Don't trigger rampage in Time Attack
+                activateRampageMode();
+            }
 
             if (questionTimer) {
                 clearInterval(questionTimer);
@@ -2362,7 +2352,7 @@
                         checkAnswer(null); // Time's up, mark as incorrect
                     }
                 }, 1000);
-            } else if (rampageHardModeActive) { // Existing rampage mode time limit
+            } else if (rampageModeActive) { // Existing rampage mode time limit
                 const timeLimit = 30;
                 let timeLeft = timeLimit;
                 timerDisplay.textContent = `残り時間: ${timeLeft}秒`;
@@ -2412,7 +2402,7 @@
                         const questionSpeechText = `第${currentQuestionNumberInSet}問。${questionData.question}`;
                         // Only speak if rampage mode is not active or if it's the first question of rampage
                         // This prevents the question from speaking over the rampage warning
-                        if (!rampageHardModeActive || rampageQuestionCounter === 1) {
+                        if (!rampageModeActive || rampageQuestionCounter === 1) {
                             console.log("問題文の読み上げを開始します。");
                             speakText(questionSpeechText);
                         }
@@ -2421,7 +2411,7 @@
             } else {
                 console.log("Tone.jsが開始されていないため、ジャジャン音なしで問題文を読み上げます。");
                 const questionSpeechText = `第${currentQuestionNumberInSet}問。${questionData.question}`;
-                if (!rampageHardModeActive || rampageQuestionCounter === 1) {
+                if (!rampageModeActive || rampageQuestionCounter === 1) {
                     speakText(questionSpeechText);
                 }
             }
@@ -2435,11 +2425,8 @@
 
             if (!rampageModeActive) { // Only activate if not already active
                 rampageModeActive = true;
-                rampageHardModeActive = false;
                 rampageQuestionCounter = 0; // Reset counter for new rampage phase
-                rampageSecondTriggerQuestion = globalQuestionNumber + 2;
                 quizContainer.classList.add('rampage-mode');
-                quizContainer.classList.remove('rampage-mode-2');
                 document.body.style.background = 'linear-gradient(90deg, #ef4444, #f87171, #fca5a5)';
                 document.body.style.animation = 'none'; // Stop rainbow animation
                 aiPersonalityTextElement.textContent = "警告！エーアイの制御が困難です。システムが暴走しています！";
@@ -2473,56 +2460,6 @@
                         overlayElement.style.display = 'none';
                     }, 300);
                 }, 3000); // Show warning for 3 seconds
-            }
-        }
-
-        function activateRampageHardMode() {
-            console.log("第2警告: 暴走ハードモードをアクティブ化します。");
-            const overlayElement = rampageWarningOverlay2;
-            const synthToPlay = rampageSynth1;
-            const notes = ["C5", "D#5", "G5"];
-
-            if (!rampageHardModeActive) {
-                rampageHardModeActive = true;
-                rampageQuestionCounter = 0; // Start counting hard questions
-                quizContainer.classList.add('rampage-mode-2');
-                document.body.style.background = 'linear-gradient(90deg, #7f1d1d, #b91c1c, #dc2626)';
-                document.body.style.animation = 'none';
-                aiPersonalityTextElement.textContent = "最終警告！エーアイが臨界点に到達。問題が難化します。";
-                aiMoodEmoji.textContent = "🚨";
-                aiConfidenceLevel = 0.95;
-                console.log("Rampage hard mode activated.");
-
-                if (overlayElement) {
-                    overlayElement.style.opacity = '0';
-                    overlayElement.style.display = 'flex';
-                    setTimeout(() => {
-                        overlayElement.style.opacity = '1';
-                    }, 10);
-                }
-
-                if (isToneStarted) {
-                    try {
-                        synthToPlay.triggerAttackRelease(notes, "0.5");
-                        console.log("第2警告の音を再生しました。");
-                    } catch (e) {
-                        console.error("Error playing second rampage sound:", e);
-                    }
-                }
-
-                if (overlayElement) {
-                    const warningText = overlayElement.querySelector('.rampage-warning-box').textContent;
-                    console.log("第2警告文の読み上げを開始します。");
-                    speakText(warningText);
-
-                    setTimeout(() => {
-                        overlayElement.style.opacity = '0';
-                        overlayElement.style.pointerEvents = 'none';
-                        setTimeout(() => {
-                            overlayElement.style.display = 'none';
-                        }, 300);
-                    }, 3000);
-                }
             }
         }
 
@@ -2757,15 +2694,10 @@
             aiLearningData = [];
             aiConfidenceLevel = 0.5;
             rampageModeActive = false;
-            rampageHardModeActive = false;
             rampageQuestionCounter = 0;
             rampageTriggerQuestion = 0;
-            rampageSecondTriggerQuestion = 0;
             currentQuestionDisplayed = null;
             hintUsedForCurrentQuestion = false; // Reset hint flag on quiz reset
-            quizContainer.classList.remove('rampage-mode', 'rampage-mode-2');
-            document.body.style.background = 'linear-gradient(120deg, #ff7e5f, #feb47b, #86a8e7, #91eae4, #a18cd1, #fbc2eb)';
-            document.body.style.animation = 'rainbow-gradient 15s ease infinite';
             
             // Ensure all Tone.js sounds are stopped and cleared on reset
             try {
