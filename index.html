@@ -151,56 +151,6 @@
             margin: 20px auto 0;
             height: 250px; /* Make chart container more horizontal */
         }
-        #result-screen {
-            background: linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(30, 64, 175, 0.9));
-            border-radius: 24px;
-            padding: 32px;
-            border: 1px solid rgba(148, 163, 184, 0.4);
-            box-shadow: 0 25px 60px rgba(15, 23, 42, 0.4), inset 0 0 40px rgba(59, 130, 246, 0.15);
-            position: relative;
-            overflow: hidden;
-        }
-        #result-screen::before {
-            content: "";
-            position: absolute;
-            top: -120px;
-            right: -120px;
-            width: 240px;
-            height: 240px;
-            background: radial-gradient(circle, rgba(56, 189, 248, 0.35), transparent 70%);
-        }
-        #result-screen::after {
-            content: "";
-            position: absolute;
-            bottom: -140px;
-            left: -140px;
-            width: 280px;
-            height: 280px;
-            background: radial-gradient(circle, rgba(99, 102, 241, 0.35), transparent 70%);
-        }
-        #final-score {
-            color: #e2e8f0;
-            font-size: 2rem;
-            letter-spacing: 0.08em;
-            text-shadow: 0 0 12px rgba(56, 189, 248, 0.5);
-            position: relative;
-            z-index: 1;
-        }
-        #quiz-end-message {
-            color: #f8fafc;
-            font-size: 1.4rem;
-            margin-top: 12px;
-            position: relative;
-            z-index: 1;
-        }
-        #result-screen .navigation-buttons,
-        #result-screen .flex {
-            position: relative;
-            z-index: 1;
-        }
-        #result-screen button {
-            box-shadow: 0 12px 25px rgba(15, 23, 42, 0.35);
-        }
         /* Responsive adjustments */
         @media (min-width: 640px) {
             .options-grid {
@@ -438,6 +388,12 @@
             <p id="final-score" class="score-display"></p>
             <p id="quiz-end-message" class="quiz-end-message"></p>
             <div class="flex flex-col sm:flex-row justify-center gap-4 mt-6">
+                <button id="share-x-button" class="bg-black text-white py-3 px-6 rounded-lg hover:bg-gray-800 transition duration-300 flex items-center justify-center">
+                    <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.814L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.714 6.23L18.244 2.25zm-2.97 17.1L9.438 5.4H6.262l7.18 13.95h3.083z" />
+                    </svg>
+                    Xで結果をシェア
+                </button>
                 <button id="download-chart-button" class="bg-green-500 text-white py-3 px-6 rounded-lg hover:bg-green-600 transition duration-300">学習グラフをダウンロード</button>
                 <button id="restart-button" class="bg-blue-500 text-white py-3 px-6 rounded-lg hover:bg-blue-600 transition duration-300">もう一度挑戦</button>
             </div>
@@ -1916,9 +1872,9 @@
         const timerDisplay = document.getElementById('timer-display');
         const hintButton = document.getElementById('hint-button'); // Hint Button
         const hintTextElement = document.getElementById('hint-text'); // Hint Text Display
+        const shareXButton = document.getElementById('share-x-button'); // X Share Button
 
         const rampageWarningOverlay = document.getElementById('rampage-warning-overlay');
-        const rampageWarningOverlay2 = document.getElementById('rampage-warning-overlay-2');
 
         const downloadChartButton = document.getElementById('download-chart-button');
 
@@ -1944,9 +1900,6 @@
         let rampageModeActive = false;
         let rampageQuestionCounter = 0;
         let rampageTriggerQuestion = 0;
-        let finalWarningTriggerQuestion = 0;
-        let finalWarningTriggered = false;
-        let warningSpeechActive = false;
 
         let currentQuestionDisplayed = null; // Stores the currently displayed question data
         let hintUsedForCurrentQuestion = false; // Flag to track if hint has been used for the current question
@@ -2144,7 +2097,6 @@
                 speechSynthesis.cancel();
                 console.log("既存の音声読み上げをキャンセルしました。");
             }
-            warningSpeechActive = false;
             if (speechTimeout) {
                 clearTimeout(speechTimeout);
                 console.log("保留中の音声タイムアウトをクリアしました。");
@@ -2167,6 +2119,13 @@
 
         downloadChartButton.addEventListener('click', downloadLearningChart);
 
+        shareXButton.addEventListener('click', () => {
+            const tweetText = `AIユーモア＆知識クイズをクリアしました！\n${finalScoreElement.textContent}。\n${quizEndMessageElement.textContent}\n#AIクイズ #AI学習 #youyouboy_dragon`; // Added #youyouboy_dragon
+            const shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}`;
+            window.open(shareUrl, '_blank');
+        });
+
+
         async function selectMode(mode) {
             console.log(`モード選択: ${mode}`);
             currentMode = mode;
@@ -2184,8 +2143,6 @@
             console.log("オーディオコンテキストと音声の準備が完了しました。");
 
             rampageTriggerQuestion = Math.floor(Math.random() * (15 - 10 + 1)) + 10;
-            finalWarningTriggerQuestion = Math.floor(Math.random() * (25 - 20 + 1)) + 20;
-            finalWarningTriggered = false;
             console.log(`Rampage will trigger at question: ${rampageTriggerQuestion}`);
 
 
@@ -2358,9 +2315,6 @@
             if (!rampageModeActive && globalQuestionNumber === rampageTriggerQuestion && currentMode !== 'timeAttack') { // Don't trigger rampage in Time Attack
                 activateRampageMode();
             }
-            if (!finalWarningTriggered && globalQuestionNumber === finalWarningTriggerQuestion && currentMode !== 'timeAttack') {
-                activateFinalWarning();
-            }
 
             if (questionTimer) {
                 clearInterval(questionTimer);
@@ -2458,9 +2412,7 @@
                 console.log("Tone.jsが開始されていないため、ジャジャン音なしで問題文を読み上げます。");
                 const questionSpeechText = `第${currentQuestionNumberInSet}問。${questionData.question}`;
                 if (!rampageModeActive || rampageQuestionCounter === 1) {
-                    setTimeout(() => {
-                        speakText(questionSpeechText);
-                    }, 120);
+                    speakText(questionSpeechText);
                 }
             }
         }
@@ -2499,7 +2451,7 @@
 
                 const warningText = overlayElement.querySelector('.rampage-warning-box').textContent;
                 console.log("警告文の読み上げを開始します。");
-                speakText(warningText, { priority: 'warning' }); // This will cancel any ongoing speech and play the warning
+                speakText(warningText); // This will cancel any ongoing speech and play the warning
 
                 setTimeout(() => {
                     overlayElement.style.opacity = '0';
@@ -2509,43 +2461,6 @@
                     }, 300);
                 }, 3000); // Show warning for 3 seconds
             }
-        }
-
-        function activateFinalWarning() {
-            console.log("最終警告をアクティブ化します。");
-            if (finalWarningTriggered) {
-                return;
-            }
-            finalWarningTriggered = true;
-            const overlayElement = rampageWarningOverlay2;
-            const notes = ["C5", "A#4", "F4"];
-
-            overlayElement.style.opacity = '0';
-            overlayElement.style.display = 'flex';
-            setTimeout(() => {
-                overlayElement.style.opacity = '1';
-            }, 10);
-
-            if (isToneStarted) {
-                try {
-                    rampageSynth1.triggerAttackRelease(notes, "0.6");
-                    console.log("最終警告の音を再生しました。");
-                } catch (e) {
-                    console.error("最終警告音の再生中にエラーが発生しました:", e);
-                }
-            }
-
-            const warningText = overlayElement.querySelector('.rampage-warning-box').textContent;
-            console.log("最終警告文の読み上げを開始します。");
-            speakText(warningText, { priority: 'warning' });
-
-            setTimeout(() => {
-                overlayElement.style.opacity = '0';
-                overlayElement.style.pointerEvents = 'none';
-                setTimeout(() => {
-                    overlayElement.style.display = 'none';
-                }, 300);
-            }, 3500);
         }
 
         function checkAnswer(selectedOption) { // Removed correctAnswerIndex, allOptions parameters
@@ -2664,12 +2579,8 @@
             aiConfidenceElement.textContent = `エーアイの自信度: ${(aiConfidenceLevel * 100).toFixed(0)}%`;
         }
 
-        async function speakText(text, { priority = 'normal' } = {}) {
+        async function speakText(text) {
             try {
-                if (warningSpeechActive && priority !== 'warning') {
-                    console.log("警告読み上げ中のため、通常の読み上げをスキップします。");
-                    return;
-                }
                 if (speechSynthesisUtterance && speechSynthesis.speaking) {
                     speechSynthesis.cancel();
                     console.log("既存の音声読み上げをキャンセルしました。");
@@ -2683,23 +2594,12 @@
                     speechSynthesisUtterance.voice = voiceToUse;
                     console.log(`音声読み上げに使用する音声: ${voiceToUse.name}`);
                 } else {
-                    console.warn("音声合成に利用可能な音声がありません。デフォルト音声で読み上げます。");
+                    console.warn("音声合成に利用可能な音声がありません。音声は再生されません。");
+                    return;
                 }
 
                 speechSynthesisUtterance.pitch = 1.3;
                 speechSynthesisUtterance.rate = 1.0;
-                if (priority === 'warning') {
-                    warningSpeechActive = true;
-                    speechSynthesisUtterance.onend = () => {
-                        warningSpeechActive = false;
-                    };
-                    speechSynthesisUtterance.onerror = () => {
-                        warningSpeechActive = false;
-                    };
-                } else {
-                    speechSynthesisUtterance.onend = null;
-                    speechSynthesisUtterance.onerror = null;
-                }
                 speechSynthesis.speak(speechSynthesisUtterance);
                 console.log(`テキスト「${processedText}」の読み上げを開始しました。`);
             } catch (error) {
